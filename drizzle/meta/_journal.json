@@ -8,6 +8,13 @@
       "when": 1788813172389,
       "tag": "0000_amusing_oracle",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788977402430,
+      "tag": "0001_cool_peter_parker",
+      "breakpoints": true
     }
   ]
 }
