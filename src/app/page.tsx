@@ -50,9 +50,12 @@ export default function Home() {
               <h2 className="text-lg font-semibold">Trading Dashboard</h2>
             </div>
 
-            <button className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-white">
+            <a
+              href="/trades/new"
+              className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-white"
+            >
               Log Trade
-            </button>
+            </a>
           </header>
 
           <div className="p-6">
