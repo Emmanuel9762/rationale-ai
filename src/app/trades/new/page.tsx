@@ -1,3 +1,5 @@
+import { createTrade } from "./actions";
+
 export default function NewTradePage() {
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -10,7 +12,7 @@ export default function NewTradePage() {
           </p>
         </div>
 
-        <form className="space-y-6">
+        <form action={createTrade} className="space-y-6">
           <section className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
             <h2 className="font-medium">Trade details</h2>
 
