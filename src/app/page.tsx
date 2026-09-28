@@ -1,94 +1,28 @@
-const stats = [
-  { label: "Total P&L", value: "$0.00" },
-  { label: "Win Rate", value: "0%" },
-  { label: "Profit Factor", value: "0.00" },
-  { label: "Trades", value: "0" },
-];
+import Link from "next/link";
+import { db } from "@/db";
+import { DEVELOPMENT_EMAIL, tradeRepository } from "@/lib/trade-repository";
+import { formatPnl, tradeMetrics } from "@/lib/trade-metrics";
 
-export default function Home() {
-  return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
-      <div className="flex min-h-screen">
-        <aside className="hidden w-64 border-r border-zinc-800 bg-zinc-950 p-5 md:block">
-          <div className="mb-10">
-            <h1 className="text-xl font-semibold">RationaleAI</h1>
-            <p className="mt-1 text-xs text-zinc-500">Trading intelligence</p>
-          </div>
-
-          <nav className="space-y-1">
-            <a
-              href="#"
-              className="block rounded-lg bg-zinc-800 px-3 py-2 text-sm font-medium"
-            >
-              Dashboard
-            </a>
-            <a
-              href="#"
-              className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
-            >
-              Trades
-            </a>
-            <a
-              href="#"
-              className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
-            >
-              Journal
-            </a>
-            <a
-              href="#"
-              className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
-            >
-              Insights
-            </a>
-          </nav>
-        </aside>
-
-        <section className="flex-1">
-          <header className="flex h-16 items-center justify-between border-b border-zinc-800 px-6">
-            <div>
-              <p className="text-sm text-zinc-500">Overview</p>
-              <h2 className="text-lg font-semibold">Trading Dashboard</h2>
-            </div>
-
-            <a
-              href="/trades/new"
-              className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-white"
-            >
-              Log Trade
-            </a>
-          </header>
-
-          <div className="p-6">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {stats.map((stat) => (
-                <div
-                  key={stat.label}
-                  className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5"
-                >
-                  <p className="text-sm text-zinc-500">{stat.label}</p>
-                  <p className="mt-2 text-2xl font-semibold">{stat.value}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 grid gap-6 lg:grid-cols-3">
-              <div className="min-h-80 rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 lg:col-span-2">
-                <h3 className="font-medium">Performance</h3>
-                <p className="mt-1 text-sm text-zinc-500">
-                  Your trading performance will appear here.
-                </p>
-              </div>
-
-              <div className="min-h-80 rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-                <h3 className="font-medium">AI Insights</h3>
-                <p className="mt-1 text-sm text-zinc-500">
-                  RationaleAI will surface patterns in your trading here.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-    </main>
-  );
+export const dynamic = "force-dynamic";
+export default async function Home() {
+  const [metrics, recent] = await Promise.all([
+    tradeMetrics(db, DEVELOPMENT_EMAIL), tradeRepository(db).list(DEVELOPMENT_EMAIL),
+  ]);
+  const stats = [
+    { label: "Recorded realized P&L", value: metrics.measured ? formatPnl(metrics.pnl) : "—", note: "Account currency" },
+    { label: "Win rate", value: metrics.winRate, note: "Wins / closed trades with P&L" },
+    { label: "Profit factor", value: metrics.profitFactor, note: "Gross profits / gross losses" },
+    { label: "Trades", value: String(metrics.total), note: `${metrics.closed} closed · ${metrics.open} open / incomplete` },
+  ];
+  return <main className="min-h-screen bg-zinc-950 text-zinc-100">
+    <header className="border-b border-zinc-800 px-6 py-5"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4"><div><p className="text-sm text-zinc-400">RationaleAI</p><h1 className="text-xl font-semibold">Trading dashboard</h1></div><nav className="flex items-center gap-5 text-sm"><Link href="/trades">Trade history</Link><Link href="/trades/new" className="rounded-lg bg-zinc-100 px-4 py-2 font-medium text-zinc-950">Log trade</Link></nav></div></header>
+    <div className="mx-auto max-w-6xl space-y-6 px-6 py-8">
+      <p className="text-sm text-zinc-400">Development journal · All time · Single user</p>
+      <section aria-label="Trading metrics" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{stats.map(stat => <div key={stat.label} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5"><h2 className="text-sm text-zinc-400">{stat.label}</h2><p className="mt-2 break-words text-2xl font-semibold">{stat.value}</p><p className="mt-2 text-xs text-zinc-400">{stat.note}</p></div>)}</section>
+      <section className="rounded-xl border border-zinc-800 p-5"><h2 className="font-medium">What these numbers include</h2><p className="mt-2 text-sm text-zinc-400">{metrics.measured} closed trades have recorded P&L. {metrics.missingPnl} closed trades still need P&L. Open or incomplete trades are excluded from performance metrics. Break-even trades count in win rate. All P&L entries must use the same account currency; no currency conversion is applied. ∞ means recorded profits with no recorded losses.</p></section>
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5"><div className="flex items-center justify-between"><h2 className="font-medium">Recent trades</h2><Link href="/trades" className="text-sm underline">View all</Link></div>
+        {!recent.trades.length ? <p className="mt-4 text-zinc-400">Your journal is empty. Log your first trade to start reviewing your decisions.</p> : <ul className="mt-4 divide-y divide-zinc-800">{recent.trades.slice(0, 5).map(trade => <li key={trade.id}><Link className="flex flex-wrap justify-between gap-3 py-4" href={`/trades/${trade.id}`}><span>{trade.symbol} <span className="text-sm text-zinc-400">{trade.direction}</span></span><span className="text-sm text-zinc-400">{trade.entryTime.toISOString().slice(0, 10)} · {trade.exitTime && trade.exitPrice !== null ? "Closed" : "Open / incomplete"}</span></Link></li>)}</ul>}
+      </section>
+    </div>
+  </main>;
 }
