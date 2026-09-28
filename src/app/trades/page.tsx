@@ -1,13 +1,15 @@
+import { requireCurrentUser } from "@/lib/auth/current-user";
 import Link from "next/link";
 import { db } from "@/db";
-import { DEVELOPMENT_EMAIL, tradeRepository } from "@/lib/trade-repository";
+import { tradeRepository } from "@/lib/trade-repository";
 
 export const dynamic = "force-dynamic";
 
 export default async function TradesPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const user = await requireCurrentUser();
   const raw = (await searchParams).page ?? "1";
   const page = /^\d+$/.test(raw) ? Math.min(100000, Math.max(1, Number(raw))) : 1;
-  const result = await tradeRepository(db).list(DEVELOPMENT_EMAIL, page);
+  const result = await tradeRepository(db).list(user.id, page);
   return <main className="min-h-screen bg-zinc-950 px-6 py-10 text-zinc-100">
     <div className="mx-auto max-w-5xl space-y-6">
       <nav className="flex gap-5 text-sm"><Link href="/">Dashboard</Link><Link href="/trades/new">Log a trade</Link></nav>

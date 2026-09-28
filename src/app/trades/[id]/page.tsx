@@ -1,11 +1,13 @@
+import { requireCurrentUser } from "@/lib/auth/current-user";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { DEVELOPMENT_EMAIL, tradeRepository } from "@/lib/trade-repository";
+import { tradeRepository } from "@/lib/trade-repository";
 
 export const dynamic = "force-dynamic";
 export default async function TradePage({ params }: { params: Promise<{ id: string }> }) {
-  const trade = await tradeRepository(db).find(DEVELOPMENT_EMAIL, (await params).id);
+  const user = await requireCurrentUser();
+  const trade = await tradeRepository(db).find(user.id, (await params).id);
   if (!trade) notFound();
   const fields = [
     ["Direction", trade.direction], ["Status", trade.exitTime && trade.exitPrice !== null ? "Closed" : "Open / incomplete"],

@@ -1,12 +1,14 @@
+import { requireCurrentUser } from "@/lib/auth/current-user";
 import Link from "next/link";
 import { db } from "@/db";
-import { DEVELOPMENT_EMAIL, tradeRepository } from "@/lib/trade-repository";
+import { tradeRepository } from "@/lib/trade-repository";
 import { formatPnl, tradeMetrics } from "@/lib/trade-metrics";
 
 export const dynamic = "force-dynamic";
 export default async function Home() {
+  const user = await requireCurrentUser();
   const [metrics, recent] = await Promise.all([
-    tradeMetrics(db, DEVELOPMENT_EMAIL), tradeRepository(db).list(DEVELOPMENT_EMAIL),
+    tradeMetrics(db, user.id), tradeRepository(db).list(user.id),
   ]);
   const stats = [
     { label: "Recorded realized P&L", value: metrics.measured ? formatPnl(metrics.pnl) : "—", note: "Account currency" },
