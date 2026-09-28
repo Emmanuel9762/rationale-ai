@@ -1,8 +1,8 @@
 import { eq, sql } from "drizzle-orm";
 import type { db } from "../db";
-import { trades, tradingAccounts, users } from "../db/schema";
+import { trades, tradingAccounts } from "../db/schema";
 
-export async function tradeMetrics(database: Pick<typeof db, "select">, email: string) {
+export async function tradeMetrics(database: Pick<typeof db, "select">, userId: string) {
   const closed = sql`${trades.exitTime} is not null and ${trades.exitPrice} is not null`;
   const measured = sql`${closed} and ${trades.pnl} is not null`;
   const [result] = await database.select({
@@ -13,8 +13,7 @@ export async function tradeMetrics(database: Pick<typeof db, "select">, email: s
     pnl: sql<string>`coalesce(sum(${trades.pnl}) filter (where ${measured}), 0)::text`,
     grossProfit: sql<string>`coalesce(sum(${trades.pnl}) filter (where ${measured} and ${trades.pnl} > 0), 0)::text`,
     grossLoss: sql<string>`coalesce(-sum(${trades.pnl}) filter (where ${measured} and ${trades.pnl} < 0), 0)::text`,
-  }).from(trades).innerJoin(tradingAccounts, eq(trades.accountId, tradingAccounts.id))
-    .innerJoin(users, eq(tradingAccounts.userId, users.id)).where(eq(users.email, email));
+  }).from(trades).innerJoin(tradingAccounts, eq(trades.accountId, tradingAccounts.id)).where(eq(tradingAccounts.userId, userId));
   return {
     ...result,
     open: result.total - result.closed,

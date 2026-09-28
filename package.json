@@ -10,7 +10,8 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "db:migrate": "node --import tsx scripts/migrate.ts",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "test:access": "node scripts/check-production-access.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -19,6 +20,7 @@
     "next": "16.3.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
     "undici": "^8.10.2"
   },
   "devDependencies": {
