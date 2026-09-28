@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const stats = [
   { label: "Total P&L", value: "$0.00" },
   { label: "Win Rate", value: "0%" },
@@ -16,46 +18,46 @@ export default function Home() {
           </div>
 
           <nav className="space-y-1">
-            <a
-              href="#"
+            <Link
+              href="/"
               className="block rounded-lg bg-zinc-800 px-3 py-2 text-sm font-medium"
             >
               Dashboard
-            </a>
-            <a
-              href="#"
+            </Link>
+            <Link
+              href="/trades"
               className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
             >
               Trades
-            </a>
-            <a
+            </Link>
+            <Link
               href="#"
               className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
             >
               Journal
-            </a>
-            <a
+            </Link>
+            <Link
               href="#"
               className="block rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
             >
               Insights
-            </a>
+            </Link>
           </nav>
         </aside>
 
         <section className="flex-1">
           <header className="flex h-16 items-center justify-between border-b border-zinc-800 px-6">
             <div>
-              <p className="text-sm text-zinc-500">Overview</p>
+              <p className="text-sm text-zinc-400"><Link href="/trades">View trade history</Link></p>
               <h2 className="text-lg font-semibold">Trading Dashboard</h2>
             </div>
 
-            <a
+            <Link
               href="/trades/new"
               className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-white"
             >
               Log Trade
-            </a>
+            </Link>
           </header>
 
           <div className="p-6">
