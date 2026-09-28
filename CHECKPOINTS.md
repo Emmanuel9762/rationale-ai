@@ -24,9 +24,8 @@ UTC and reject invalid calendar dates. Failed saves retain the form contents.
 
 The app reuses the oldest existing development account instead of inserting an
 account on every save. Existing duplicate accounts and their trades are retained.
-First-ever concurrent account creation can still create duplicates: a future
-account/authentication checkpoint should introduce a uniqueness rule after
-reconciling existing data. This remains a single-user development application.
+CP12 below resolves concurrent default-account creation without deleting legacy
+accounts. This remains a single-user development application.
 
 Previous timestamps were interpreted in the server's timezone. Existing stored
 values are displayed without retroactive conversion. Check old entries manually
@@ -60,5 +59,61 @@ was performed in the implementation environment. No live schema changes were
 made. Isolated tests do not establish live connectivity.
 
 Before a public/multi-user release: replace the development identity with
-session authentication, retain query-level ownership enforcement, reconcile
-account duplicates, and add concurrency protection for simultaneous edits.
+session authentication, retain query-level ownership enforcement, and add
+concurrency protection for simultaneous trade edits.
+
+
+## CP11 — stable ownership and a server-side identity boundary
+
+All journal reads, metrics and writes now take the UUID of the current user.
+Only `src/lib/auth/development-user.ts` knows the legacy development email.
+Every protected page and both Server Actions call `requireCurrentUser` before
+accessing records. Changes to a user's email no longer change record ownership.
+Submitted user/account IDs do not override the server-resolved identity.
+
+`npm run dev` still resolves the existing development user. Production
+(`npm run build` then `npm start`) redirects journal pages and save actions to
+`/sign-in`. That page is deliberately a placeholder: no OAuth provider, real
+session, registration, or public multi-user access has been added. Development
+mode is still shared-user access and should remain local; it is not authentication.
+
+`npm run test:access` starts an ephemeral production server against an unreachable
+dummy database and verifies redirects for all five protected pages and both
+save actions. Run it after a build. Next can stream an action redirect with
+HTTP 200; the test verifies the explicit sign-in redirect header as well.
+
+## CP12 — one default account per user
+
+Migration `0002_default_accounts` adds `is_default` and a partial unique index
+on user ID for default accounts. It marks each existing user's oldest account
+as default (ties broken by account ID), matching the previous selection order.
+No account, balance, trade, or owner is deleted or reassigned.
+
+New default-account creation uses `INSERT ... ON CONFLICT DO NOTHING`, then
+reads the winning account. The database index enforces uniqueness, including
+requests from different application instances. Older non-default accounts remain
+visible through user-scoped history and metrics.
+
+Verification: 24 tests, TypeScript, ESLint, production build, diff check and the
+production HTTP access check passed. PGlite tests cover simultaneous requests,
+unique-index rejection, migration from a populated CP10 schema, unchanged legacy
+trades/balances and repeat migration. PGlite serializes its underlying connection;
+this is not a multi-connection Neon load test. The unique index is the concurrency
+guarantee. No live Neon migration or post-upgrade smoke check was performed.
+
+### Local rollout for CP11–CP12
+
+1. Stop the development server before migrating; preserve `.env.local` and any
+   uncommitted README edits. Install locked dependencies with `npm ci`.
+2. Follow MIGRATIONS.md to verify existing migration history and test migration
+   0002 on a disposable branch/copy of the database first. The new app requires
+   this migration. Do not start it against the old schema.
+3. Once the migration is verified and applied to the intended database, run
+   `npm run dev`. Confirm existing trades are present, create two trades, and
+   verify both use the same default account. Edit/close a trade and check metrics.
+4. `npm start` deliberately shows the sign-in placeholder until real session
+   authentication is implemented in a later checkpoint.
+
+Next bounded step: choose and integrate a login provider, map its verified
+identity to users.id, and explicitly decide how to link the existing development
+journal. Never automatically assign old trades to the first person who signs in.

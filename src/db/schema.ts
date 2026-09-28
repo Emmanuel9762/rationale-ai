@@ -1,9 +1,12 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   uuid,
   varchar,
   timestamp,
   numeric,
+  boolean,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -18,9 +21,12 @@ export const tradingAccounts = pgTable("trading_accounts", {
     .notNull()
     .references(() => users.id),
   name: varchar("name", { length: 100 }).notNull(),
+  isDefault: boolean("is_default").default(false).notNull(),
   balance: numeric("balance", { precision: 14, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, table => [
+  uniqueIndex("trading_accounts_one_default_per_user").on(table.userId).where(sql`${table.isDefault} = true`),
+]);
 
 export const trades = pgTable("trades", {
   id: uuid("id").defaultRandom().primaryKey(),
