@@ -5,7 +5,7 @@ import { once } from "node:events";
 
 // Exercise a real production server without using a live database or credentials.
 const child = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", "0"], {
-  env: { ...process.env, NODE_ENV: "production", DATABASE_URL: "postgresql://test:test@127.0.0.1:1/test" },
+  env: { ...process.env, NODE_ENV: "production", DATABASE_URL: "postgresql://test:test@127.0.0.1:1/test", NEON_AUTH_BASE_URL: "https://127.0.0.1:1/auth", NEON_AUTH_COOKIE_SECRET: "test-only-cookie-secret-not-for-deployment" },
   stdio: ["ignore", "pipe", "pipe"],
 });
 let output = "";
@@ -47,7 +47,7 @@ try {
   }
   const signIn = await fetch(base + "/sign-in");
   assert.equal(signIn.status, 200);
-  assert.match(await signIn.text(), /Sign-in is not available yet/);
+  assert.match(await signIn.text(), /Sign in to your journal/);
   console.log("Production access: 5 protected pages and both save actions redirect; sign-in page is accessible.");
 } finally {
   const exited = once(child, "exit");

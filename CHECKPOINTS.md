@@ -117,3 +117,26 @@ guarantee. No live Neon migration or post-upgrade smoke check was performed.
 Next bounded step: choose and integrate a login provider, map its verified
 identity to users.id, and explicitly decide how to link the existing development
 journal. Never automatically assign old trades to the first person who signs in.
+
+## CP13 — Neon sessions and explicit identity linking
+
+Adds email/password sign-up/sign-in, account page and sign-out, replacing the
+shared development identity in every environment. A validated provider session
+resolves to an internal users.id via issuer + subject, never by email matching.
+Migration 0003 adds nullable identity columns and a unique index; old journals
+remain unclaimed until the database operator explicitly links their account.
+`auth:link-legacy` performs that operation atomically and refuses conflicting
+ownership or an already-populated new journal.
+
+Neon branch `cp13-auth` was provisioned separately and migration 0003 applied there.
+Production is unchanged. Earlier CP11–12 live-verification notes above describe
+implementation-time status: their migrations were subsequently reconciled through
+Neon, data preservation verified, and local migration/dev smoke checks passed.
+
+CP13 verification: 26 tests, lint, typecheck, production build, signed-out access
+checks, and a controlled HTTPS-provider integration test for signup/session refresh/
+expiry/invalid credentials/signout. The form test caught and fixed a bound-action
+error-response stall. SDK version is pinned. Live Neon HTTP signup, session refresh, signout rejection and sign-in passed
+using localhost through the workspace proxy. Actual browser acceptance remains
+pending on the user's laptop because Chromium could not be downloaded. CP14 has not started. See AUTH_SETUP.md for
+exact local reconciliation and ownership-link instructions.

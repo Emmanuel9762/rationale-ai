@@ -57,3 +57,16 @@ The existing HTTP migration runner is not atomic across the entire migration;
 a partial failure needs inspection, not blind retries. The older app ignores the
 new column, so retaining the additive schema while reverting app code is possible.
 Do not drop the column/index as an automatic rollback.
+
+## CP13 identity migration
+
+`0003_auth_identity` adds nullable `users.auth_subject`/`auth_issuer` and a unique
+index over their pair. It does not link or transfer existing records. It has been
+applied only to the `cp13-auth` Neon development branch; production remains on
+0002. Follow AUTH_SETUP.md to pair the correct database and Auth endpoint and
+perform explicit operator-only legacy linking after registration.
+
+Failure diagnostics now include safe SQLSTATE/network codes, not error messages,
+query parameters or connection strings. For example, `28P01` is authentication,
+`42P07` an existing relation, and `EAI_AGAIN` DNS resolution. Investigate before
+retrying a partially applied migration.

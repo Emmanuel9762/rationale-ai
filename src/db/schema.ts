@@ -12,8 +12,10 @@ import {
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: varchar("email", { length: 255 }).notNull().unique(),
+  authSubject: varchar("auth_subject", { length: 255 }),
+  authIssuer: varchar("auth_issuer", { length: 512 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, table => [uniqueIndex("users_auth_identity_unique").on(table.authIssuer, table.authSubject)]);
 
 export const tradingAccounts = pgTable("trading_accounts", {
   id: uuid("id").defaultRandom().primaryKey(),

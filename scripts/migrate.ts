@@ -1,3 +1,4 @@
+import { safeErrorCodes } from "../src/lib/safe-error";
 import dotenv from "dotenv";
 import { migrate } from "drizzle-orm/neon-http/migrator";
 
@@ -12,7 +13,9 @@ async function main() {
   console.log("Migrations applied successfully.");
 }
 
-main().catch(() => {
+main().catch((error: unknown) => {
+  const codes = safeErrorCodes(error);
+  if (codes.length) console.error("Diagnostic codes:", codes.join(", "));
   // Driver errors can contain connection details. Keep credentials out of logs.
   console.error("Migration failed. Check connectivity and migration history before retrying; do not reset the database.");
   process.exitCode = 1;

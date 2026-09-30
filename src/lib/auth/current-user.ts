@@ -1,13 +1,23 @@
 import "server-only";
 import { redirect } from "next/navigation";
-import { resolveDevelopmentUser } from "./development-user";
+import { getAuth } from "./server";
+import { authConfig } from "./config";
+import { resolveSessionUser } from "./session-user";
 
-// Every protected page and Server Action must call this itself.
-// A future session provider belongs here; never accept identity from FormData.
+export async function requireSession() {
+  // Check the provider on every protected request, including save actions.
+  const { data, error } = await getAuth().getSession({ query: { disableCookieCache: "true" } });
+  const expiry = data?.session ? new Date(data.session.expiresAt).getTime() : NaN;
+  if (error || !data?.user || !Number.isFinite(expiry) || expiry <= Date.now()) redirect("/sign-in");
+  return data;
+}
+
 export async function requireCurrentUser() {
-  if (process.env.NODE_ENV !== "development") redirect("/sign-in");
+  const session = await requireSession();
   const { db } = await import("../../db");
-  const user = await resolveDevelopmentUser(db, process.env.NODE_ENV);
-  if (!user) redirect("/sign-in");
+  const user = await resolveSessionUser(db, {
+    subject: session.user.id, issuer: authConfig().baseUrl, email: session.user.email,
+  });
+  if (!user) redirect("/account?link=required");
   return user;
 }
