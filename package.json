@@ -11,9 +11,12 @@
     "typecheck": "next typegen && tsc --noEmit",
     "db:migrate": "node --import tsx scripts/migrate.ts",
     "db:generate": "drizzle-kit generate",
-    "test:access": "node scripts/check-production-access.mjs"
+    "test:access": "node scripts/check-production-access.mjs",
+    "auth:link-legacy": "node --import tsx scripts/link-legacy-user.ts",
+    "test:auth": "node scripts/check-auth-flow.mjs"
   },
   "dependencies": {
+    "@neondatabase/auth": "0.5.0-beta",
     "@neondatabase/serverless": "^1.1.0",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",

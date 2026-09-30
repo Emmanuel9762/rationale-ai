@@ -34,7 +34,7 @@ test("upgrade preserves legacy accounts and trades and chooses oldest account wi
     await writeFile(join(folder, "meta/_journal.json"), JSON.stringify(journal));
     for (const entry of journal.entries) await copyFile(`drizzle/${entry.tag}.sql`, join(folder, `${entry.tag}.sql`));
     await migrate(db, { migrationsFolder: folder });
-    const [user] = await db.insert(users).values({ email: "dev@rationale-ai.local" }).returning();
+    const { rows: [user] } = await client.query<{ id: string }>("INSERT INTO users(email) VALUES ('dev@rationale-ai.local') RETURNING id");
     const first = "00000000-0000-4000-8000-000000000001";
     const second = "00000000-0000-4000-8000-000000000002";
     // Raw SQL models the old schema, before is_default existed.
