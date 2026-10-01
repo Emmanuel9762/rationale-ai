@@ -17,7 +17,9 @@ try {
   execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-keyout', key, '-out', cert, '-subj', '/CN=localhost', '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1'], { stdio: 'ignore' });
   const user = { id: '00000000-0000-4000-8000-000000000009', email: 'auth-test@example.test', name: 'Test', emailVerified: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   let active = false, expired = false;
-  let password;
+  let password, resetToken, verificationCode;
+  let throttled = false;
+  let resetCalls = 0;
   const token = randomBytes(24).toString('hex');
   provider = https.createServer({ key: await readFile(key), cert: await readFile(cert) }, async (req, res) => {
     let raw = ''; for await (const chunk of req) raw += chunk;
@@ -25,6 +27,29 @@ try {
     const path = new URL(req.url, 'https://localhost').pathname;
     res.setHeader('Content-Type', 'application/json');
     const reply = (data, status = 200) => { res.statusCode = status; res.end(JSON.stringify(data)); };
+    if (path.endsWith('/request-password-reset')) {
+      resetCalls++;
+      assert.equal(body.redirectTo, 'http://localhost:3000/reset-password');
+      if (throttled) return reply({code:'TOO_MANY_REQUESTS'},429);
+      if (body.email === user.email) resetToken = randomBytes(24).toString('hex');
+      return reply({status:true});
+    }
+    if (path.endsWith('/reset-password')) {
+      if (!resetToken || body.token !== resetToken) return reply({code:'INVALID_TOKEN'},400);
+      password=body.newPassword; resetToken=undefined; active=false;
+      return reply({status:true});
+    }
+    if (path.endsWith('/email-otp/send-verification-otp')) {
+      assert.equal(body.type,'email-verification');
+      if (throttled) return reply({code:'TOO_MANY_REQUESTS'},429);
+      if (body.email === user.email) verificationCode='123456';
+      return reply({success:true});
+    }
+    if (path.endsWith('/email-otp/verify-email')) {
+      if (!verificationCode || body.email !== user.email || body.otp !== verificationCode) return reply({code:'INVALID_OTP'},400);
+      user.emailVerified=true; verificationCode=undefined;
+      return reply({status:true,user});
+    }
     if (path.endsWith('/sign-up/email') || path.endsWith('/sign-in/email')) {
       if (path.endsWith('/sign-up/email')) password = body.password;
       if (body.password !== password) return reply({ message: 'Invalid credentials', code: 'INVALID_EMAIL_OR_PASSWORD' }, 401);
@@ -45,7 +70,7 @@ try {
   });
   provider.listen(0, '127.0.0.1'); await once(provider, 'listening');
   child = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '0'], {
-    env: { ...process.env, NODE_OPTIONS: '', NODE_ENV: 'production', NODE_EXTRA_CA_CERTS: cert, DATABASE_URL: 'postgresql://test:test@127.0.0.1:1/test', NEON_AUTH_BASE_URL: `https://127.0.0.1:${provider.address().port}/auth`, NEON_AUTH_COOKIE_SECRET: randomBytes(32).toString('hex') }, stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, APP_ORIGIN: 'http://localhost:3000', NODE_OPTIONS: '', NODE_ENV: 'production', NODE_EXTRA_CA_CERTS: cert, DATABASE_URL: 'postgresql://test:test@127.0.0.1:1/test', NEON_AUTH_BASE_URL: `https://127.0.0.1:${provider.address().port}/auth`, NEON_AUTH_COOKIE_SECRET: randomBytes(32).toString('hex') }, stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = ''; child.stdout.on('data', c => output += c); child.stderr.on('data', c => output += c);
   let base;
@@ -65,8 +90,8 @@ try {
     }
     return r;
   }
-  async function submit(path, fields) {
-    const html = await (await request(path)).text(); const body = new FormData();
+  async function submit(path, fields, formIndex = 0) {
+    const page = await (await request(path)).text(); const html = (page.match(/<form\b[^>]*>[\s\S]*?<\/form>/g) ?? [])[formIndex]; assert.ok(html, `form ${formIndex} on ${path}`); const body = new FormData();
     for (const tag of html.match(/<input[^>]*type="hidden"[^>]*>/g) ?? []) {
       const name = tag.match(/name="([^"]*)"/), value = tag.match(/value="([^"]*)"/);
       if (name) body.append(decode(name[1]), decode(value?.[1] ?? ''));
@@ -90,6 +115,33 @@ try {
   assert.equal(response.status, 200); assert.match(await response.text(), /Sign-in failed/);
   response = await submit('/sign-in', credentials); assert.equal(response.headers.get('location'), '/account');
   response = await submit('/account', {}); assert.equal(response.headers.get('location'), '/sign-in');
+  const known = await (await submit('/forgot-password',{email:user.email})).text();
+  const unknown = await (await submit('/forgot-password',{email:'absent@example.test'})).text();
+  for (const html of [known,unknown]) assert.match(html,/If this address has an account/);
+  const calls=resetCalls;
+  assert.match(await (await submit('/forgot-password',{email:'invalid'})).text(),/valid email/);
+  assert.equal(resetCalls,calls,'invalid input never reaches provider');
+  assert.match(await (await request('/reset-password')).text(),/missing, invalid or expired/);
+  const oldToken=resetToken;
+  const resetPath='/reset-password?token='+oldToken;
+  assert.match(await (await submit(resetPath,{password:'new-password-123',confirmPassword:'mismatch'})).text(),/passwords do not match/);
+  assert.equal(resetToken,oldToken,'mismatch does not consume token');
+  assert.match(await (await submit('/reset-password?token=expired',{password:'new-password-123',confirmPassword:'new-password-123'})).text(),/invalid or expired/);
+  assert.match(await (await submit(resetPath,{password:'new-password-123',confirmPassword:'new-password-123'})).text(),/Password updated/);
+  assert.match(await (await submit(resetPath,{password:'new-password-123',confirmPassword:'new-password-123'})).text(),/invalid or expired/);
+  assert.match(await (await submit('/sign-in',credentials)).text(),/Sign-in failed/);
+  assert.equal((await submit('/sign-in',{email:user.email,password:'new-password-123'})).headers.get('location'),'/account');
+  user.emailVerified=false;
+  assert.match(await (await request('/account')).text(),/Not verified/);
+  assert.match(await (await submit('/verify-email',{email:user.email})).text(),/check your inbox/);
+  assert.match(await (await submit('/verify-email',{email:user.email,otp:'000000'},1)).text(),/invalid or expired/);
+  assert.match(await (await submit('/verify-email',{email:user.email,otp:'123456'},1)).text(),/Email verified/);
+  assert.match(await (await request('/account')).text(),/Email: <!-- -->Verified/);
+  assert.match(await (await submit('/verify-email',{email:user.email,otp:'123456'},1)).text(),/invalid or expired/);
+  throttled=true;
+  assert.match(await (await submit('/forgot-password',{email:user.email})).text(),/Too many requests/);
+  assert.match(await (await submit('/verify-email',{email:user.email})).text(),/Too many requests/);
+  console.log('Recovery HTTP flow: generic reset requests, validation, invalid/reused tokens, changed password, OTP verification, reused codes and throttling passed.');
   console.log('Auth HTTP flow: registration, session refresh, expiry, sign-out, invalid credentials and sign-in passed. Provider was a controlled fixture.');
 } finally {
   if (child && child.exitCode === null) { const stopped = once(child, 'exit'); child.kill('SIGKILL'); await stopped; }
