@@ -140,3 +140,27 @@ error-response stall. SDK version is pinned. Live Neon HTTP signup, session refr
 using localhost through the workspace proxy. Actual browser acceptance remains
 pending on the user's laptop because Chromium could not be downloaded. CP14 has not started. See AUTH_SETUP.md for
 exact local reconciliation and ownership-link instructions.
+
+## CP14 — full-app ownership and concurrent account checks
+
+The owner confirmed local CP13 login and visibility of the linked legacy journal.
+`test:isolation` runs the production Next app, real SDK and Server Actions against
+an HTTPS auth fixture and migrated PGlite SQL fixture. Independent cookie jars
+exercise dashboard/list/detail isolation, cross-owner action replay, forged owner
+fields, valid owner edits, signed-out writes and session expiry. The app has no
+fixture authentication bypass. Undici stays external to Next so its native transport
+and the test-process-only request interception use the same module.
+
+Verified: production build, lint, typecheck, full-app HTTP isolation. A live Neon
+check on disposable `cp14-isolation-tests` (`br-quiet-forest-aevzheef`) exercised
+12 independent HTTP account requests and the unique constraint; it passed and
+cleaned up only its synthetic owner. No production or owner-journal writes.
+
+`test:browser` adds two independent Chromium contexts. Its execution remains a
+release gate: browser binary downloads failed in this workspace. The verified
+CP14 increment covers HTTP application isolation and real Neon concurrency, not
+browser rendering/cookie acceptance. CI will run the browser gate in CP16.
+
+To run the live concurrency check, supply a disposable migrated branch URL as
+ISOLATION_DATABASE_URL and ISOLATION_ALLOW_WRITES=1 in ignored `.env.isolation.local`,
+then `npm run test:neon-concurrency`. Do not use your working journal branch.
