@@ -13,6 +13,7 @@ async function authenticate(mode: "sign-in" | "sign-up", _previous: AuthState, f
   try {
     const auth = getAuth();
     const result = mode === "sign-up" ? await auth.signUp.email({ email, password, name }) : await auth.signIn.email({ email, password });
+    if (result.error?.code === "EMAIL_NOT_VERIFIED") return { error: "Verify your email before signing in. Use the verification link below to enter or resend a code." };
     if (result.error) return { error: mode === "sign-in" ? "Sign-in failed. Check your details and try again." : "Could not create the account. Try signing in if you already registered." };
     if (mode === "sign-up" && !result.data?.token) return { error: "", notice: "Check your email to verify your account, then sign in." };
   } catch {

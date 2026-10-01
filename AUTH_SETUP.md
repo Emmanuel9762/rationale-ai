@@ -1,10 +1,10 @@
-# CP13: Neon authentication
+# Neon authentication and recovery
 
 This branch adds email/password registration, sign-in, sign-out, and server-validated
 sessions. `npm run dev` now requires sign-in too; the shared development bypass is
 removed. The SDK is pinned to `@neondatabase/auth@0.5.0-beta`. This is an incremental
-integration, not a public-release approval. Account recovery/email verification UI,
-OAuth, and CP14's complete two-user browser suite remain future work.
+integration, not a public-release approval. CP15 adds recovery and email-code verification. OAuth remains future work.
+See RELEASE.md for the remaining public-release gates.
 
 ## Database and Auth must use the same Neon branch
 
@@ -26,6 +26,7 @@ Set these values in `.env.local`:
 DATABASE_URL=<cp13-auth connection string from Neon Connect>
 NEON_AUTH_BASE_URL=https://ep-soft-wave-aeqmdo3m.neonauth.c-2.us-east-2.aws.neon.tech/neondb/auth
 NEON_AUTH_COOKIE_SECRET=<a newly generated random secret>
+APP_ORIGIN=http://localhost:3000
 ```
 
 Generate the cookie secret with `openssl rand -base64 32`. Keep it private and
@@ -43,7 +44,7 @@ Stop the old dev server. From the existing project directory:
 
 ```fish
 git fetch origin
-git switch codex/neon-auth-cp13
+git switch codex/cp14-cp16
 npm ci --no-audit --no-fund
 ```
 
@@ -58,6 +59,7 @@ After editing `.env.local`, remove shell overrides so dotenv reads the file:
 set -e DATABASE_URL
 set -e NEON_AUTH_BASE_URL
 set -e NEON_AUTH_COOKIE_SECRET
+set -e APP_ORIGIN
 npm run db:migrate
 npm run dev
 ```
@@ -103,6 +105,7 @@ npm run typecheck
 npm run build
 npm run test:access
 npm run test:auth
+npm run test:isolation
 ```
 
 `test:auth` needs OpenSSL (available on Linux Mint). It creates a temporary HTTPS
@@ -116,8 +119,8 @@ Live HTTP testing also passed against the actual cp13-auth Neon provider through
 this workspace's proxy: signup, session refresh, sign-out denying protected access,
 and signing back in. Synthetic Auth-only test accounts remain on the isolated
 branch; they do not own your journal. Use localhost, not 127.0.0.1 or the LAN IP,
-for local Auth requests. The Chromium download failed here, so an actual browser
-smoke test on your laptop remains a rollout gate before CP14 or deployment.
+for local Auth requests. The owner subsequently confirmed local login and linked trades. Automated Chromium
+downloads failed here; CI and the local two-browser checklist remain release gates.
 
 ## Production rollout later
 
@@ -128,3 +131,30 @@ production. The existing production journal remains intact.
 
 Resources: [Neon Next.js guide](https://neon.com/docs/auth/quick-start/nextjs-api-only),
 [server SDK](https://neon.com/docs/auth/reference/nextjs-server).
+
+## CP15: password recovery and verification codes
+
+Keep your existing working connection, cookie secret and linked account. Add only
+`APP_ORIGIN=http://localhost:3000` locally and restart. This explicit origin controls
+reset-email callbacks; never derive it from an incoming Host header. Public hosting
+requires the actual HTTPS origin and the same origin in Neon's trusted domains.
+There are no new migrations or ownership-link steps in CP14–16.
+
+- Sign-in now links to **Forgot password?** and **Verify your email**.
+- Reset requests give the same notice for known/unknown emails. The email returns
+  to `/reset-password`; enter and confirm a new password. Invalid, missing, expired
+  or reused tokens show a retry path. Use the new password to sign in.
+- Account shows verification status. `/verify-email` sends/resends a six-digit OTP
+  and accepts the latest emailed code. This works with the shared Neon email sender.
+  The resend countdown is a UI convenience; provider rate limits enforce abuse controls.
+- Required verification is not enabled by this code update. Keep the branch's
+  verification method set to **code/OTP**, verify your own email first, and test
+  delivery before enabling mandatory verification for a public release.
+
+The installed SDK's `requestPasswordReset`, `resetPassword`,
+`emailOtp.sendVerificationOtp` and `emailOtp.verifyEmail` run in Server Actions.
+Neon issues, checks and expires tokens/codes. The app never invents recovery tokens
+or changes journal ownership during recovery. Controlled-provider HTTP tests cover
+validation, unknown email, reset/reuse, changed credentials, OTP/reuse and throttling.
+Real inbox delivery must be checked locally; no recovery emails were sent to your
+account by the automated tests. Do not paste email codes or reset links into chat.

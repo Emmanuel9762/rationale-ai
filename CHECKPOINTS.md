@@ -164,3 +164,18 @@ browser rendering/cookie acceptance. CI will run the browser gate in CP16.
 To run the live concurrency check, supply a disposable migrated branch URL as
 ISOLATION_DATABASE_URL and ISOLATION_ALLOW_WRITES=1 in ignored `.env.isolation.local`,
 then `npm run test:neon-concurrency`. Do not use your working journal branch.
+
+## CP15 — password recovery and email-code verification
+
+Adds forgot/reset-password forms, explicit APP_ORIGIN for safe reset callbacks,
+verification send/resend/submit forms, account verification status and sign-in links.
+The pinned Neon SDK owns reset tokens and OTP checks. Generic request notices do
+not disclose account existence. Invalid/expired/reused credentials have retry paths.
+Mandatory verification remains unchanged on the working Auth branch.
+
+Verified: 27 unit/integration tests, lint, TypeScript production build, and real
+Next/SDK HTTP tests against a controlled HTTPS provider covering reset validation,
+unknown emails, successful password change, old-password rejection, token reuse,
+OTP verification/reuse and provider throttling. Real inbox delivery and browser
+interaction are explicitly pending acceptance checks; AUTH_SETUP.md gives steps.
+No schema changes, live Auth policy changes or automated emails to the owner.
