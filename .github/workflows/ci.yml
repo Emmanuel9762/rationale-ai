@@ -1,0 +1,36 @@
+name: Verify checkpoints
+on:
+  pull_request:
+  push:
+    branches: [main, 'codex/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      DATABASE_URL: postgresql://fixture:fixture@127.0.0.1:1/test
+      NEON_AUTH_BASE_URL: https://fixture.invalid/auth
+      NEON_AUTH_COOKIE_SECRET: ci-fixture-secret-only-not-a-real-secret-123456
+      APP_ORIGIN: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run test:access
+      - run: npm run test:auth
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser

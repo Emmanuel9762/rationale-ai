@@ -137,9 +137,9 @@ CP13 verification: 26 tests, lint, typecheck, production build, signed-out acces
 checks, and a controlled HTTPS-provider integration test for signup/session refresh/
 expiry/invalid credentials/signout. The form test caught and fixed a bound-action
 error-response stall. SDK version is pinned. Live Neon HTTP signup, session refresh, signout rejection and sign-in passed
-using localhost through the workspace proxy. Actual browser acceptance remains
-pending on the user's laptop because Chromium could not be downloaded. CP14 has not started. See AUTH_SETUP.md for
-exact local reconciliation and ownership-link instructions.
+using localhost through the workspace proxy. The owner later confirmed local login
+and linked trades. Automated browser acceptance remains a separate gate because
+Chromium could not be downloaded. See subsequent CP14–16 entries and AUTH_SETUP.md.
 
 ## CP14 — full-app ownership and concurrent account checks
 
@@ -179,3 +179,25 @@ unknown emails, successful password change, old-password rejection, token reuse,
 OTP verification/reuse and provider throttling. Real inbox delivery and browser
 interaction are explicitly pending acceptance checks; AUTH_SETUP.md gives steps.
 No schema changes, live Auth policy changes or automated emails to the owner.
+
+## CP16 — CI, read-only database audit and release rehearsal
+
+Adds GitHub Actions checks on Node 24 using fixture services, a read-only
+`db:verify` audit of migration history and required identity/account schema, a
+repeatable production-fixture performance command, and RELEASE.md with exact Fish
+reconciliation commands, browser/inbox acceptance and production gates.
+
+Fresh Neon branch `cp16-release-rehearsal` (`br-rapid-darkness-aef70gft`) was copied
+from production at CP12. The real migration script applied 0003; verification found
+four matching migrations and the expected columns/indexes. A second migration run
+succeeded without adding entries. Before/after fingerprints matched for all original
+user fields, both accounts (including balances/ownership), and all four trades.
+Production was not migrated or modified. No Auth provisioning, deployment or merge.
+
+Verified locally: 28 tests, lint, typecheck/build, signed-out access, recovery/auth
+HTTP checks, two-user isolation, real Neon concurrency and migration/audit rehearsal.
+Production fixture first/warm timings are documented separately from live Neon or
+browser measurements. Chromium downloads (including headless shell) returned invalid
+archives, so automated browser execution remains unverified here. CI includes this
+as a failing gate, not a silent skip. Real inbox delivery and laptop browser acceptance
+remain required before public release. Check the PR for remote CI status.

@@ -2,7 +2,8 @@
 
 The checked-in sequence is `0000_amusing_oracle` (core tables) followed by
 `0001_cool_peter_parker` (setup, rationale, notes), then
-`0002_default_accounts` (default-account flag, uniqueness and legacy backfill). Preserve applied SQL and
+`0002_default_accounts` (default-account flag, uniqueness and legacy backfill), and
+`0003_auth_identity` (nullable identity mapping). Preserve applied SQL and
 journal timestamps; add a new migration for future schema changes.
 
 1. Install locked dependencies with `npm ci`.
@@ -62,7 +63,7 @@ Do not drop the column/index as an automatic rollback.
 
 `0003_auth_identity` adds nullable `users.auth_subject`/`auth_issuer` and a unique
 index over their pair. It does not link or transfer existing records. It has been
-applied only to the `cp13-auth` Neon development branch; production remains on
+applied to `cp13-auth` and disposable verification branches; production remains on
 0002. Follow AUTH_SETUP.md to pair the correct database and Auth endpoint and
 perform explicit operator-only legacy linking after registration.
 
@@ -70,3 +71,13 @@ Failure diagnostics now include safe SQLSTATE/network codes, not error messages,
 query parameters or connection strings. For example, `28P01` is authentication,
 `42P07` an existing relation, and `EAI_AGAIN` DNS resolution. Investigate before
 retrying a partially applied migration.
+
+
+## CP16 read-only verification
+
+Run `npm run db:verify` with the intended branch's private DATABASE_URL. It compares
+all applied migration hashes and timestamps in order, reports pending entries,
+and verifies the identity/default-account columns and unique indexes. A nonzero
+exit means investigate before starting the app; this command does not change SQL,
+repair ledger entries, or replace a complete schema-diff review. See RELEASE.md
+for the fresh-production-copy rehearsal and production rollout gates.

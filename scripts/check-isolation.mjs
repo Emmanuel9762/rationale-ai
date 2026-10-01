@@ -82,6 +82,13 @@ try {
   const input={symbol:'ONLY_A',direction:'LONG',entryPrice:'1.5',quantity:'2',entryTime:'2026-01-01T12:00',rationale:'A private rationale'};
   const created=await a.submit('/trades/new',input);assert.equal(created.status,303);
   const tradePath=created.headers.get('location');assert.match(tradePath,/^\/trades\/[a-f0-9-]+$/);
+  if (process.argv.includes('--performance')) {
+    for (const path of ['/', '/trades', tradePath]) {
+      const samples=[];
+      for(let i=0;i<6;i++){const start=performance.now(); const r=await a.request(path);assert.equal(r.status,200);await r.text();samples.push(Math.round(performance.now()-start));}
+      console.log(`Production fixture HTTP ${path===tradePath?'/trades/[id]':path}: first=${samples[0]}ms; warm median=${samples.slice(1).sort((a,b)=>a-b)[2]}ms (local Auth/PGlite, not live Neon).`);
+    }
+  }
   const aTrade=(await database.query('select * from trades')).rows[0];
   const editPath=tradePath+'/edit';const editHtml=await(await a.request(editPath)).text();
   for(const path of [tradePath,editPath]) {const r=await b.request(path);const html=await r.text();assert.ok(!html.includes('A private rationale'));assert.ok(r.status===404||html.includes('NEXT_HTTP_ERROR_FALLBACK;404'));}
