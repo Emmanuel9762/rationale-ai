@@ -42,3 +42,29 @@ test("journal reads persisted trades in order and excludes another owner's recor
     assert.equal(await repo.find(ownerIds[0], "00000000-0000-4000-8000-000000000000"), null);
   } finally { await client.close(); }
 });
+
+test("pagination handles an exact full page, overflow, and pages beyond the end", async () => {
+  const client = new PGlite(); const db = drizzle(client);
+  try {
+    await migrate(db, { migrationsFolder: "./drizzle" });
+    const [user] = await db.insert(users).values({ email: "boundary@test.local" }).returning();
+    const [account] = await db.insert(tradingAccounts).values({ userId: user.id, name: "Boundary", balance: "0" }).returning();
+    const repo = tradeRepository(db);
+    await db.insert(trades).values(Array.from({ length: 25 }, (_, i) => ({
+      accountId: account.id, symbol: `BOUND${i}`, direction: "LONG", entryPrice: "1", quantity: "1",
+      entryTime: new Date(Date.UTC(2026, 0, i + 1)),
+    })));
+    const full = await repo.list(user.id);
+    assert.equal(full.trades.length, 25);
+    assert.equal(full.hasNext, false, "a full page alone must not imply another page");
+    assert.deepEqual(await repo.list(user.id, 2), { trades: [], hasNext: false });
+    const [oldest] = await db.insert(trades).values({ accountId: account.id, symbol: "OLDER", direction: "LONG", entryPrice: "1", quantity: "1", entryTime: new Date("2025-01-01T00:00:00Z") }).returning();
+    const first = await repo.list(user.id);
+    const second = await repo.list(user.id, 2);
+    assert.deepEqual(first.trades.map(t => t.id), full.trades.map(t => t.id));
+    assert.equal(first.hasNext, true);
+    assert.deepEqual(second.trades.map(t => t.id), [oldest.id]);
+    assert.equal(second.hasNext, false);
+    assert.deepEqual(await repo.list(user.id, 3), { trades: [], hasNext: false });
+  } finally { await client.close(); }
+});
