@@ -201,3 +201,19 @@ browser measurements. Chromium downloads (including headless shell) returned inv
 archives, so automated browser execution remains unverified here. CI includes this
 as a failing gate, not a silent skip. Real inbox delivery and laptop browser acceptance
 remain required before public release. Check the PR for remote CI status.
+
+## Preparation before CP17 — pagination regression tests
+
+Basic pagination already exists: 25 rows per page, one extra row to determine
+whether Next is available, and entry time + UUID descending order. CP17 should
+extend this with filtering rather than introduce pagination from scratch.
+
+Two small test-only increments cover exact-full-page/overflow/empty-later-page
+boundaries, plus tied timestamps across multiple accounts and interleaved owners.
+The tests verify that ownership is applied before pagination and unchanged data
+produces repeatable pages. Focused repository tests, typecheck and lint passed.
+No app behavior, dependencies, migrations or live database changes were needed.
+
+Offset pagination can still shift during concurrent inserts or edits. These tests
+prove ordering on unchanged data, not a snapshot across multiple requests. Cursor
+pagination is a future option if journal size or browsing behavior warrants it.
