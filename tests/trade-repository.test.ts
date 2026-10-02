@@ -68,3 +68,37 @@ test("pagination handles an exact full page, overflow, and pages beyond the end"
     assert.deepEqual(await repo.list(user.id, 3), { trades: [], hasNext: false });
   } finally { await client.close(); }
 });
+
+test("tied entry times remain ordered across pages and other owners cannot shift page boundaries", async () => {
+  const client = new PGlite(); const db = drizzle(client);
+  try {
+    await migrate(db, { migrationsFolder: "./drizzle" });
+    const [owner, other] = await db.insert(users).values([{ email: "ties@test.local" }, { email: "foreign@test.local" }]).returning();
+    const accounts = await db.insert(tradingAccounts).values([
+      { userId: owner.id, name: "First", balance: "0" },
+      { userId: owner.id, name: "Second", balance: "0" },
+      { userId: other.id, name: "Other owner", balance: "0" },
+    ]).returning();
+    const idFor = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, "0")}`;
+    const entryTime = new Date("2026-01-01T12:00:00Z");
+    // Interleave owners and accounts at the same timestamp, including UUIDs
+    // that would occupy the first page if ownership were applied after LIMIT.
+    await db.insert(trades).values(Array.from({ length: 60 }, (_, i) => ({
+      id: idFor(i + 1), accountId: i % 2 ? accounts[2].id : accounts[(i / 2) % 2].id,
+      symbol: "TIED", direction: "LONG", entryPrice: "1", quantity: "1", entryTime,
+    })));
+    const expected = Array.from({ length: 30 }, (_, i) => idFor(59 - i * 2));
+    const repo = tradeRepository(db);
+    const first = await repo.list(owner.id);
+    const second = await repo.list(owner.id, 2);
+    assert.deepEqual(first.trades.map(t => t.id), expected.slice(0, 25));
+    assert.deepEqual(second.trades.map(t => t.id), expected.slice(25));
+    assert.equal(first.hasNext, true);
+    assert.equal(second.hasNext, false);
+    assert.equal(new Set([...first.trades, ...second.trades].map(t => t.id)).size, 30);
+    assert.deepEqual(await repo.list(owner.id), first, "unchanged data yields the same page");
+    const otherPage = await repo.list(other.id);
+    assert.ok(otherPage.trades.every(t => t.accountId === accounts[2].id));
+    assert.equal(await repo.find(other.id, expected[0]), null);
+  } finally { await client.close(); }
+});
