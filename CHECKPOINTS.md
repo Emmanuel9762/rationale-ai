@@ -217,3 +217,30 @@ No app behavior, dependencies, migrations or live database changes were needed.
 Offset pagination can still shift during concurrent inserts or edits. These tests
 prove ordering on unchanged data, not a snapshot across multiple requests. Cursor
 pagination is a future option if journal size or browsing behavior warrants it.
+
+## CP17 — journal filters with preserved pagination
+
+Adds exact case-insensitive symbol, direction, lifecycle status and inclusive UTC
+entry-date filters to /trades. A GET form stores selections in the URL, resets to
+page 1 when applied, and preserves filters in Previous/Next links. Clear returns
+to the complete journal. Invalid/duplicate filters show errors without fetching an
+unfiltered list; empty filtered pages offer clear/first-page navigation.
+
+The repository combines every filter with the authenticated user's ownership
+predicate before applying the existing 25-row pagination. Closed still means both
+exit price and exit time are present; incomplete legacy closes remain in Open /
+incomplete. The through date uses an exclusive next-midnight bound to include the
+whole UTC day. Dashboard metrics continue to cover the whole journal.
+
+Verified: 34 tests, typecheck, lint, clean production build, signed-out access and
+full-app HTTP isolation/filter tests. Coverage includes literal wildcard/injection
+text, tied rows across filtered pages, UTC boundaries, malformed URLs and owner
+isolation. Browser filter apply/clear checks are included in the CI browser suite;
+local browser execution was unavailable in this workspace. The first build hit an
+existing Turbopack persisted-cache panic; rebuilding with a fresh cache passed.
+No dependency, migration, environment or live database changes.
+
+Local verification: switch to codex/cp17-journal-filters, run npm test and npm run dev.
+At /trades filter a known symbol, combine direction/status/dates, refresh, and clear.
+For more than 25 matches, verify Next/Previous preserve selections; applying a new
+filter from page 2 returns to page 1. Both entry-date boundaries use UTC.

@@ -103,6 +103,21 @@ try {
   assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,'Owner correction');
   const firstOwner=(await database.query('select user_id from trading_accounts where id=$1',[aTrade.account_id])).rows[0].user_id;
   assert.equal((await database.query('select count(*)::int n from trading_accounts where user_id=$1 and is_default',[firstOwner])).rows[0].n,1);
+  // Exercise filters through the real server, with enough matches for two pages.
+  await database.query("insert into trades (account_id,symbol,direction,entry_price,quantity,entry_time) select $1,'ONLY_A','LONG',1,1,'2026-01-01 12:00:00'::timestamp from generate_series(1,25)",[aTrade.account_id]);
+  const filteredPath='/trades?symbol=ONLY_A&direction=LONG&status=open&from=2026-01-01&to=2026-01-01';
+  const filteredHtml=await(await a.request(filteredPath)).text();
+  const nextTag=(filteredHtml.match(/<a\b[^>]*>Next<\/a>/g)??[])[0];assert.ok(nextTag,'filtered first page has Next');
+  const nextPath=decode(nextTag.match(/href="([^"]+)"/)[1]);
+  const nextUrl=new URL(nextPath,base);assert.equal(nextUrl.searchParams.get('page'),'2');
+  for(const key of ['symbol','direction','status','from','to'])assert.equal(nextUrl.searchParams.get(key),new URL(filteredPath,base).searchParams.get(key));
+  const secondHtml=await(await a.request(nextPath)).text();assert.ok(!/>Next<\/a>/.test(secondHtml));assert.match(secondHtml,/ONLY_A<\/a>/);
+  const form=filteredHtml.match(/<form\b[^>]*>[\s\S]*?<\/form>/)[0];assert.match(form,/method="[gG][eE][tT]"/);assert.ok(!/name="page"/.test(form),'Apply resets pagination');
+  assert.match(await(await a.request('/trades?symbol=MISSING')).text(),/No trades match these filters/);
+  assert.match(await(await a.request('/trades?page=99&symbol=ONLY_A')).text(),/Return to the first page/);
+  const invalidHtml=await(await a.request('/trades?from=2026-02-30')).text();assert.match(invalidHtml,/Check your filters/);assert.ok(!invalidHtml.includes('<table'));
+  const otherFiltered=await(await b.request(filteredPath)).text();assert.match(otherFiltered,/No trades match these filters/);assert.ok(!otherFiltered.includes('<table'));
+  console.log('Journal HTTP filters: preserved pagination links, first-page apply, empty/error states and owner isolation passed.');
   await a.submit('/account',{});
   const denied=await a.submit(editPath,{...input,notes:'SIGNED OUT'},editHtml);assert.equal(denied.headers.get('location'),'/sign-in');
   assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,'Owner correction');
@@ -123,6 +138,14 @@ try {
       await pages[0].getByRole('button',{name:'Save trade',exact:true}).click();await pages[0].waitForURL(/\/trades\/[a-f0-9-]+$/);
       const path=new URL(pages[0].url()).pathname;await pages[0].reload();assert.ok((await pages[0].textContent('body')).includes('A private rationale'));
       await pages[1].goto(base.replace('127.0.0.1','localhost')+path);assert.ok(!(await pages[1].textContent('body')).includes('A private rationale'));
+      await pages[0].goto(base.replace('127.0.0.1','localhost')+'/trades?page=2');
+      await pages[0].getByLabel('Symbol (exact)',{exact:true}).fill('missing');
+      await pages[0].getByRole('button',{name:'Apply filters',exact:true}).click();
+      await pages[0].waitForURL(url=>url.searchParams.get('symbol')==='missing'&&!url.searchParams.has('page'));
+      await pages[0].getByText('No trades match these filters.',{exact:false}).waitFor();
+      await pages[0].getByRole('link',{name:'Clear filters',exact:true}).first().click();
+      await pages[0].waitForURL(url=>url.pathname==='/trades'&&!url.search);
+      assert.ok((await pages[0].textContent('table')).includes('ONLY_A'));
       console.log('Two isolated Chromium contexts: signup, trade creation, refresh and cross-user denial passed.');
     } finally {await browser.close();}
   }

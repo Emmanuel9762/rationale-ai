@@ -1,6 +1,8 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, lt, isNull, isNotNull, or, sql } from "drizzle-orm";
 import type { db } from "../db";
 import { trades, tradingAccounts } from "../db/schema";
+
+import type { JournalFilters } from "./journal-filters";
 
 export const PAGE_SIZE = 25;
 export function isTradeId(id: string) {
@@ -13,8 +15,19 @@ export function tradeRepository(database: Pick<typeof db, "select">) {
       .innerJoin(tradingAccounts, eq(trades.accountId, tradingAccounts.id));
   }
   return {
-    async list(userId: string, page = 1) {
-      const rows = await scoped().where(eq(tradingAccounts.userId, userId))
+    async list(userId: string, page = 1, filters: JournalFilters = {}) {
+      // Apply ownership and all filters before LIMIT/OFFSET.
+      const through = filters.to ? new Date(`${filters.to}T00:00:00.000Z`) : undefined;
+      if (through) through.setUTCDate(through.getUTCDate() + 1);
+      const rows = await scoped().where(and(
+        eq(tradingAccounts.userId, userId),
+        filters.symbol ? sql`upper(${trades.symbol}) = ${filters.symbol.toUpperCase()}` : undefined,
+        filters.direction ? eq(trades.direction, filters.direction) : undefined,
+        filters.status === "closed" ? and(isNotNull(trades.exitTime), isNotNull(trades.exitPrice)) : undefined,
+        filters.status === "open" ? or(isNull(trades.exitTime), isNull(trades.exitPrice)) : undefined,
+        filters.from ? gte(trades.entryTime, new Date(`${filters.from}T00:00:00.000Z`)) : undefined,
+        through ? lt(trades.entryTime, through) : undefined,
+      ))
         .orderBy(desc(trades.entryTime), desc(trades.id))
         .limit(PAGE_SIZE + 1).offset((page - 1) * PAGE_SIZE);
       return { trades: rows.slice(0, PAGE_SIZE).map(row => row.trade), hasNext: rows.length > PAGE_SIZE };
