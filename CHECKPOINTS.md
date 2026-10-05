@@ -244,3 +244,36 @@ Local verification: switch to codex/cp17-journal-filters, run npm test and npm r
 At /trades filter a known symbol, combine direction/status/dates, refresh, and clear.
 For more than 25 matches, verify Next/Previous preserve selections; applying a new
 filter from page 2 returns to page 1. Both entry-date boundaries use UTC.
+
+## CP18 — performance by setup and symbol
+
+Adds the authenticated /performance page, linked from dashboard and history.
+All-time tables show total trades, open/incomplete trades, closed trades missing
+P&L, measured sample size, win rate and total recorded P&L per setup and symbol.
+Rows are alphabetical; sample sizes and denominator definitions are explicit.
+Unmeasured groups display dashes for results, distinguishing missing data from zero.
+
+Dashboard and breakdowns share aggregate expressions and lifecycle calculations.
+Only closed trades with recorded P&L contribute to performance; break-even trades
+remain in the win-rate denominator. Ownership is applied before grouping across
+accounts. Symbols ignore case; setups are trimmed but retain case. NULL/blank setups
+form a missing-label group without absorbing a literal label with the same display
+text. Amounts remain PostgreSQL decimal strings through formatting. All included
+accounts must use the same currency; currency conversion is not implemented.
+History filters do not affect these all-time tables.
+
+Verified: 35 tests, lint, typecheck/build, full-app HTTP performance/isolation tests,
+and signed-out access checks for six protected pages. Tests cover mixed outcomes,
+missing P&L, incomplete closes, multiple accounts, other owners, empty journals and
+exact aggregate cents beyond JavaScript's safe integer-cent range. The HTTP fixture
+now preserves SQL result columns by position, avoiding duplicate aggregate column
+names overwriting each other. Browser page/empty-state checks are added to CI;
+local Chromium execution remains unavailable. No migration, dependencies, environment
+or live database changes. The owner's local authentication acceptance remains pending
+by agreement; CP18 does not claim those checks passed.
+
+Local check: switch to codex/cp18-performance, run npm test and npm run dev, then
+open Performance from the dashboard. Compare a known setup/symbol with its trades;
+confirm open-only groups have no measured result. A closed win, loss and break-even
+trade yield a sample of three and a 33.3% win rate. Next planned checkpoint: structured
+trade reviews (CP19), subject to its own bounded implementation and verification.

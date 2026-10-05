@@ -30,9 +30,10 @@ try {
     const reply = (data, status=200) => { res.statusCode=status; res.end(JSON.stringify(data)); };
     if (path === '/sql') {
       try {
-        const result = await database.query(body.query, body.params);
+        // Preserve duplicate aggregate column names, as Neon array rows do.
+        const result = await database.query(body.query, body.params, { rowMode: "array" });
         const text = (value, field) => value === null ? null : value instanceof Date ? (field.dataTypeID === 1114 ? value.toISOString().slice(0,-1).replace('T',' ') : value.toISOString()) : typeof value === 'boolean' ? (value ? 't':'f') : typeof value === 'object' ? JSON.stringify(value) : String(value);
-        return reply({ fields: result.fields, rows: result.rows.map(row=>result.fields.map(f=>text(row[f.name], f))), rowCount: result.affectedRows ?? result.rows.length, command: 'SELECT' });
+        return reply({ fields: result.fields, rows: result.rows.map(row=>result.fields.map((f, i)=>text(row[i], f))), rowCount: result.affectedRows ?? result.rows.length, command: 'SELECT' });
       } catch (e) { return reply({message:e.message,code:e.code},400); }
     }
     const token = req.headers.cookie?.match(/__Secure-neon-auth.session_token=([^;]+)/)?.[1];
@@ -92,7 +93,7 @@ try {
   const aTrade=(await database.query('select * from trades')).rows[0];
   const editPath=tradePath+'/edit';const editHtml=await(await a.request(editPath)).text();
   for(const path of [tradePath,editPath]) {const r=await b.request(path);const html=await r.text();assert.ok(!html.includes('A private rationale'));assert.ok(r.status===404||html.includes('NEXT_HTTP_ERROR_FALLBACK;404'));}
-  for(const path of ['/','/trades']) {const html=await(await b.request(path)).text();assert.ok(!html.includes('ONLY_A'));}
+  for(const path of ['/','/trades','/performance']) {const html=await(await b.request(path)).text();assert.ok(!html.includes('ONLY_A'));}
   const forged=await b.submit(editPath,{...input,notes:'HACKED',userId:aTrade.account_id},editHtml);
   assert.match(await forged.text(),/Trade not found or unavailable/);
   assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,null);
@@ -118,6 +119,16 @@ try {
   const invalidHtml=await(await a.request('/trades?from=2026-02-30')).text();assert.match(invalidHtml,/Check your filters/);assert.ok(!invalidHtml.includes('<table'));
   const otherFiltered=await(await b.request(filteredPath)).text();assert.match(otherFiltered,/No trades match these filters/);assert.ok(!otherFiltered.includes('<table'));
   console.log('Journal HTTP filters: preserved pagination links, first-page apply, empty/error states and owner isolation passed.');
+  const performanceBefore = await(await a.request('/performance')).text();
+  assert.match(performanceBefore,/Performance breakdowns/);assert.match(performanceBefore,/By setup/);assert.match(performanceBefore,/By symbol/);
+  assert.ok(performanceBefore.includes('ONLY_A'));assert.ok(!performanceBefore.includes('ONLY_B'));
+  const rowsBefore=performanceBefore.match(/<tbody>[\s\S]*?<\/tbody>/g);assert.equal(rowsBefore.length,2);
+  assert.ok(rowsBefore.every(table=>table.includes('—')),'open-only groups have no measured results');
+  await database.query("update trades set setup='OWNER_SETUP',exit_price=2,exit_time='2026-01-01 13:00:00',pnl=12.34 where id=$1",[aTrade.id]);
+  const performanceAfter = await(await a.request('/performance')).text();
+  assert.match(performanceAfter,/OWNER_SETUP/);assert.match(performanceAfter,/12\.34/);assert.match(performanceAfter,/100\.0%/);
+  const otherPerformance = await(await b.request('/performance')).text();assert.ok(otherPerformance.includes('ONLY_B'));assert.ok(!otherPerformance.includes('OWNER_SETUP'));assert.ok(!otherPerformance.includes('ONLY_A'));
+  console.log('Performance HTTP: setup/symbol groups, unmeasured display, recorded results and owner isolation passed.');
   await a.submit('/account',{});
   const denied=await a.submit(editPath,{...input,notes:'SIGNED OUT'},editHtml);assert.equal(denied.headers.get('location'),'/sign-in');
   assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,'Owner correction');
@@ -137,6 +148,11 @@ try {
       for(const [name,value]of Object.entries(input)) {const field=pages[0].locator(`[name="${name}"]`);if(name==='direction')await field.selectOption(value);else await field.fill(value);}
       await pages[0].getByRole('button',{name:'Save trade',exact:true}).click();await pages[0].waitForURL(/\/trades\/[a-f0-9-]+$/);
       const path=new URL(pages[0].url()).pathname;await pages[0].reload();assert.ok((await pages[0].textContent('body')).includes('A private rationale'));
+      await pages[0].goto(base.replace('127.0.0.1','localhost')+'/performance');
+      await pages[0].getByRole('heading',{name:'Performance breakdowns',exact:true}).waitFor();
+      assert.ok((await pages[0].getByRole('region',{name:'By symbol',exact:true}).textContent()).includes('ONLY_A'));
+      await pages[1].goto(base.replace('127.0.0.1','localhost')+'/performance');
+      await pages[1].getByText('No trades yet.',{exact:false}).waitFor();
       await pages[1].goto(base.replace('127.0.0.1','localhost')+path);assert.ok(!(await pages[1].textContent('body')).includes('A private rationale'));
       await pages[0].goto(base.replace('127.0.0.1','localhost')+'/trades?page=2');
       await pages[0].getByLabel('Symbol (exact)',{exact:true}).fill('missing');
