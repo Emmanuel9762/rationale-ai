@@ -81,3 +81,27 @@ and verifies the identity/default-account columns and unique indexes. A nonzero
 exit means investigate before starting the app; this command does not change SQL,
 repair ledger entries, or replace a complete schema-diff review. See RELEASE.md
 for the fresh-production-copy rehearsal and production rollout gates.
+
+## CP19 trade reviews
+
+`0004_trade_reviews` adds four nullable columns to `trades`: plan adherence,
+what went well, what to improve, and the last review save time (UTC). Existing
+trades start unreviewed. No ownership, balances, identity or financial values are
+backfilled or changed. No new environment variables are required.
+
+Stop the app before updating. Keep DATABASE_URL paired with the existing Auth
+branch; do not swap only the database to an unrelated Auth branch. Rehearse on a
+backup/disposable database copy before applying to the intended database:
+
+```fish
+set -e DATABASE_URL
+npm run db:migrate
+npm run db:verify
+```
+
+The first command removes a stale Fish environment override so the scripts use
+`.env.local`; check that file's target privately first. Verification should report
+five verified migrations, zero pending, and successful schema checks. Start the
+app only after both commands succeed. Existing CP18 code can run with the added
+nullable columns if code rollback is needed; do not drop columns or ledger rows.
+No live Neon migration was performed as part of CP19 implementation.

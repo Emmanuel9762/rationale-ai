@@ -104,6 +104,23 @@ try {
   assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,'Owner correction');
   const firstOwner=(await database.query('select user_id from trading_accounts where id=$1',[aTrade.account_id])).rows[0].user_id;
   assert.equal((await database.query('select count(*)::int n from trading_accounts where user_id=$1 and is_default',[firstOwner])).rows[0].n,1);
+  const reviewHtml=await(await a.request(tradePath)).text();
+  assert.match(reviewHtml,/Not reviewed yet/);
+  const review={planAdherence:'partly',reviewWentWell:'PRIVATE_REVIEW',reviewImprove:'Wait for confirmation'};
+  const rejectedReview=await b.submit(tradePath,review,reviewHtml);
+  assert.match(await rejectedReview.text(),/Trade not found or unavailable/);
+  const invalidReview=await a.submit(tradePath,{planAdherence:'followed'},reviewHtml);
+  assert.match(await invalidReview.text(),/Add what went well/);
+  assert.equal((await database.query('select reviewed_at from trades where id=$1',[aTrade.id])).rows[0].reviewed_at,null);
+  const savedReview=await a.submit(tradePath,{...review,pnl:'999',accountId:bTrade.account_id},reviewHtml);
+  assert.equal(savedReview.status,303);assert.equal(savedReview.headers.get('location'),tradePath+'#review');
+  const reviewedHtml=await(await a.request(tradePath)).text();assert.match(reviewedHtml,/PRIVATE_REVIEW/);assert.match(reviewedHtml,/Last saved/);
+  assert.ok(!(await(await b.request(tradePath)).text()).includes('PRIVATE_REVIEW'));
+  const reviewedRow=(await database.query('select * from trades where id=$1',[aTrade.id])).rows[0];
+  assert.equal(reviewedRow.pnl,null);assert.equal(reviewedRow.account_id,aTrade.account_id);assert.equal(reviewedRow.rationale,input.rationale);
+  const revised=await a.submit(tradePath,{planAdherence:'followed',reviewImprove:'Revised reflection'},reviewedHtml);assert.equal(revised.status,303);
+  assert.equal((await database.query('select review_went_well from trades where id=$1',[aTrade.id])).rows[0].review_went_well,null);
+  console.log('Review HTTP: validation, save/reload/edit, cross-owner denial and unchanged trade data passed.');
   // Exercise filters through the real server, with enough matches for two pages.
   await database.query("insert into trades (account_id,symbol,direction,entry_price,quantity,entry_time) select $1,'ONLY_A','LONG',1,1,'2026-01-01 12:00:00'::timestamp from generate_series(1,25)",[aTrade.account_id]);
   const filteredPath='/trades?symbol=ONLY_A&direction=LONG&status=open&from=2026-01-01&to=2026-01-01';
@@ -130,6 +147,8 @@ try {
   const otherPerformance = await(await b.request('/performance')).text();assert.ok(otherPerformance.includes('ONLY_B'));assert.ok(!otherPerformance.includes('OWNER_SETUP'));assert.ok(!otherPerformance.includes('ONLY_A'));
   console.log('Performance HTTP: setup/symbol groups, unmeasured display, recorded results and owner isolation passed.');
   await a.submit('/account',{});
+  const deniedReview=await a.submit(tradePath,review,reviewHtml);assert.equal(deniedReview.headers.get('location'),'/sign-in');
+  assert.equal((await database.query('select review_improve from trades where id=$1',[aTrade.id])).rows[0].review_improve,'Revised reflection');
   const denied=await a.submit(editPath,{...input,notes:'SIGNED OUT'},editHtml);assert.equal(denied.headers.get('location'),'/sign-in');
   assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,'Owner correction');
   for(const session of sessions.values())session.session.expiresAt=new Date(0).toISOString();
@@ -148,6 +167,11 @@ try {
       for(const [name,value]of Object.entries(input)) {const field=pages[0].locator(`[name="${name}"]`);if(name==='direction')await field.selectOption(value);else await field.fill(value);}
       await pages[0].getByRole('button',{name:'Save trade',exact:true}).click();await pages[0].waitForURL(/\/trades\/[a-f0-9-]+$/);
       const path=new URL(pages[0].url()).pathname;await pages[0].reload();assert.ok((await pages[0].textContent('body')).includes('A private rationale'));
+      await pages[0].getByLabel('Did you follow your plan?').selectOption('partly');
+      await pages[0].getByLabel('What went well?').fill('Browser reflection');
+      await pages[0].getByRole('button',{name:'Save review',exact:true}).click();
+      await pages[0].getByText('Last saved (UTC):',{exact:false}).waitFor();
+      await pages[0].reload();assert.equal(await pages[0].getByLabel('What went well?').inputValue(),'Browser reflection');
       await pages[0].goto(base.replace('127.0.0.1','localhost')+'/performance');
       await pages[0].getByRole('heading',{name:'Performance breakdowns',exact:true}).waitFor();
       assert.ok((await pages[0].getByRole('region',{name:'By symbol',exact:true}).textContent()).includes('ONLY_A'));

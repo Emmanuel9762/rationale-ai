@@ -277,3 +277,30 @@ open Performance from the dashboard. Compare a known setup/symbol with its trade
 confirm open-only groups have no measured result. A closed win, loss and break-even
 trade yield a sample of three and a 33.3% win rate. Next planned checkpoint: structured
 trade reviews (CP19), subject to its own bounded implementation and verification.
+
+## CP19 — structured trade reviews
+
+Each trade detail page now has a separate review: explicit plan adherence,
+what went well, and what to improve next time. At least one reflection is required;
+each is capped at 2,000 characters. Open and closed trades can be reviewed. A save
+replaces the previous review and records its UTC save time; this is not an audit
+history or an immutable pre-trade plan. Existing rationale and notes remain intact.
+
+A dedicated authenticated Server Action validates inputs and updates review fields
+only, with the owner predicate inside the SQL update. Trade edits preserve reviews.
+Migration 0004 adds nullable fields; old trades remain unreviewed. db:verify now
+checks the review columns as well as migration history and existing auth schema.
+No dependency or environment changes and no live database changes.
+
+Acceptance remains pending by the owner's request, including prior checkpoints.
+When ready: follow MIGRATIONS.md, open an existing trade, save a review, refresh,
+edit it, and check that rationale/P&L remain intact. Try an empty reflection for a
+validation error and confirm another signed-in account cannot access the trade.
+Automated browser coverage for save/refresh is included in the CI fixture suite.
+
+Verified for CP19: 37 tests, lint, production build including TypeScript,
+signed-out access checks, and full-app HTTP review validation/save/reload/replacement,
+cross-owner and signed-out denial, plus existing journal/performance isolation.
+The initial build hit the previously observed persisted Turbopack cache panic;
+a fresh cache resolved it. Browser checks are committed for CI but were not run
+locally. Live migration and laptop acceptance remain pending.
