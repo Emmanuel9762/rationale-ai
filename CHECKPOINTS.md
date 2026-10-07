@@ -389,3 +389,17 @@ all entered fields after the server-side validation error, then corrects and sav
 No schema or dependencies change. Browser confirmation is delegated to CI because
 workspace Chromium downloads return invalid archives. This repair takes priority
 over adding archive/restore; the next increments are review queue and CSV export.
+
+## CP23 — review queue and history status
+
+History now filters Reviewed/Unreviewed and displays review links per row. Dashboard
+and history link to Needs review: closed trades without a saved review. Both exit
+fields are required for closed status. Review predicates apply with ownership and
+all existing filters before pagination, with URL selections preserved. Saving a
+review revalidates history and removes the trade from the queue. Reviewed means a
+reflection was saved, not that it was written after the most recent trade edit.
+
+Verified: 42 tests, lint, production build/typecheck, and HTTP queue/save/ownership
+checks. Tests cover >25 matches, incomplete/open trades, another owner, saved-review
+removal, invalid filters and combined selections. No migration or dependencies.
+CP22's browser result remains pending while its remote Chromium installation runs.

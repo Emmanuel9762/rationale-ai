@@ -189,6 +189,15 @@ try {
   assert.match(performanceAfter,/OWNER_SETUP/);assert.match(performanceAfter,/12\.34/);assert.match(performanceAfter,/100\.0%/);
   const otherPerformance = await(await b.request('/performance')).text();assert.ok(otherPerformance.includes('ONLY_B'));assert.ok(!otherPerformance.includes('OWNER_SETUP'));assert.ok(!otherPerformance.includes('ONLY_A'));
   console.log('Performance HTTP: setup/symbol groups, unmeasured display, recorded results and owner isolation passed.');
+  const queueRow=(await database.query("insert into trades(account_id,symbol,direction,entry_price,quantity,entry_time,exit_price,exit_time) values ($1,'QUEUE_A','LONG',1,1,'2026-01-01',2,'2026-01-02') returning id",[aTrade.account_id])).rows[0];
+  const queuePath='/trades?status=closed&review=unreviewed';
+  const queueHtml=await(await a.request(queuePath)).text();assert.match(queueHtml,/QUEUE_A/);assert.ok(!queueHtml.includes('ONLY_A</a>'));
+  assert.ok(!(await(await b.request(queuePath)).text()).includes('QUEUE_A'));
+  const queueSaved=await a.submit('/trades/'+queueRow.id,{planAdherence:'followed',reviewWentWell:'Queue complete'});assert.match(await queueSaved.text(),/Review saved/);
+  assert.match(await(await a.request(queuePath)).text(),/No trades match these filters/);
+  assert.match(await(await a.request('/trades?review=reviewed')).text(),/QUEUE_A/);
+  assert.match(await(await a.request('/trades?review=invalid')).text(),/Check your filters/);
+  console.log('Review queue HTTP: closed/unreviewed scope, save removes row, owner isolation and invalid filters passed.');
   await a.submit('/account',{});
   const deniedReview=await a.submit(tradePath,review,reviewHtml);assert.equal(deniedReview.headers.get('location'),'/sign-in');
   assert.equal((await database.query('select review_improve from trades where id=$1',[aTrade.id])).rows[0].review_improve,'Revised reflection');

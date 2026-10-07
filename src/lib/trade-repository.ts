@@ -25,6 +25,8 @@ export function tradeRepository(database: Pick<typeof db, "select">) {
         filters.direction ? eq(trades.direction, filters.direction) : undefined,
         filters.status === "closed" ? and(isNotNull(trades.exitTime), isNotNull(trades.exitPrice)) : undefined,
         filters.status === "open" ? or(isNull(trades.exitTime), isNull(trades.exitPrice)) : undefined,
+        filters.review === "reviewed" ? isNotNull(trades.reviewedAt) : undefined,
+        filters.review === "unreviewed" ? isNull(trades.reviewedAt) : undefined,
         filters.from ? gte(trades.entryTime, new Date(`${filters.from}T00:00:00.000Z`)) : undefined,
         through ? lt(trades.entryTime, through) : undefined,
       ))
