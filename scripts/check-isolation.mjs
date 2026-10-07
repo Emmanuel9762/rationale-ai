@@ -18,6 +18,7 @@ const database = new PGlite();
 await migrate(drizzle(database), { migrationsFolder: './drizzle' });
 let child;
 let provider;
+let loseTradeInsertReply = false;
 try {
   const cert = join(dir, 'cert.pem'), key = join(dir, 'key.pem');
   execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-keyout', key, '-out', cert, '-subj', '/CN=localhost', '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1'], { stdio: 'ignore' });
@@ -32,6 +33,11 @@ try {
       try {
         // Preserve duplicate aggregate column names, as Neon array rows do.
         const result = await database.query(body.query, body.params, { rowMode: "array" });
+        // Simulate a committed insert whose result cannot reach the application.
+        if (loseTradeInsertReply && /^insert into "trades"/i.test(body.query.trim())) {
+          loseTradeInsertReply = false;
+          return reply({message:'Fixture lost insert response'},503);
+        }
         const text = (value, field) => value === null ? null : value instanceof Date ? (field.dataTypeID === 1114 ? value.toISOString().slice(0,-1).replace('T',' ') : value.toISOString()) : typeof value === 'boolean' ? (value ? 't':'f') : typeof value === 'object' ? JSON.stringify(value) : String(value);
         return reply({ fields: result.fields, rows: result.rows.map(row=>result.fields.map((f, i)=>text(row[i], f))), rowCount: result.affectedRows ?? result.rows.length, command: 'SELECT' });
       } catch (e) { return reply({message:e.message,code:e.code},400); }
@@ -81,8 +87,29 @@ try {
     const r=await client.submit('/sign-up',{name:email,email,password:'fixture-password'});assert.equal(r.status,303);
   }
   const input={symbol:'ONLY_A',direction:'LONG',entryPrice:'1.5',quantity:'2',entryTime:'2026-01-01T12:00',rationale:'A private rationale'};
-  const created=await a.submit('/trades/new',input);assert.equal(created.status,303);
+  const newTradeHtml=await(await a.request('/trades/new')).text();
+  const keyFrom=html=>html.match(/name="submissionKey"[^>]*value="([^"]+)"/)[1];
+  const submissionKey=keyFrom(newTradeHtml);
+  const invalidSubmission=await a.submit('/trades/new',{...input,pnl:'1'},newTradeHtml);
+  const invalidSubmissionHtml=await invalidSubmission.text();assert.match(invalidSubmissionHtml,/P&amp;L can only be recorded/);
+  assert.equal(keyFrom(invalidSubmissionHtml),submissionKey,'validation errors preserve the submission key');
+  assert.equal((await database.query('select count(*)::int n from trades')).rows[0].n,0);
+  loseTradeInsertReply=true;
+  const uncertain=await a.submit('/trades/new',input,invalidSubmissionHtml);
+  const uncertainHtml=await uncertain.text();assert.match(uncertainHtml,/Could not confirm the save/);
+  assert.equal(loseTradeInsertReply,false);assert.equal(keyFrom(uncertainHtml),submissionKey);
+  assert.equal((await database.query('select count(*)::int n from trades')).rows[0].n,1);
+  const created=await a.submit('/trades/new',input,uncertainHtml);assert.equal(created.status,303);
   const tradePath=created.headers.get('location');assert.match(tradePath,/^\/trades\/[a-f0-9-]+$/);
+  const replays=await Promise.all(Array.from({length:3},()=>a.submit('/trades/new',input,newTradeHtml)));
+  for(const replay of replays){assert.equal(replay.status,303);assert.equal(replay.headers.get('location'),tradePath);}
+  const changedReplay=await a.submit('/trades/new',{...input,symbol:'CHANGED'},newTradeHtml);
+  assert.match(await changedReplay.text(),/different details/);
+  const badKey=await a.submit('/trades/new',{...input,submissionKey:'bad'},newTradeHtml);
+  assert.match(await badKey.text(),/valid submission key/);
+  assert.equal((await database.query('select count(*)::int n from trades')).rows[0].n,1);
+  assert.notEqual(keyFrom(await(await a.request('/trades/new')).text()),submissionKey,'fresh forms get new keys');
+  console.log('Submission HTTP: validation key retention, lost insert response/retry, concurrent replay and mismatched payload protection passed.');
   if (process.argv.includes('--performance')) {
     for (const path of ['/', '/trades', tradePath]) {
       const samples=[];
@@ -97,10 +124,12 @@ try {
   const forged=await b.submit(editPath,{...input,notes:'HACKED',userId:aTrade.account_id},editHtml);
   assert.match(await forged.text(),/Trade not found or unavailable/);
   assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,null);
-  const bCreated=await b.submit('/trades/new',{...input,symbol:'ONLY_B',rationale:'B private rationale',accountId:aTrade.account_id,userId:'00000000-0000-4000-8000-000000000000'});
+  const bCreated=await b.submit('/trades/new',{...input,symbol:'ONLY_B',rationale:'B private rationale',submissionKey,accountId:aTrade.account_id,userId:'00000000-0000-4000-8000-000000000000'});
   assert.equal(bCreated.status,303);
   const bTrade=(await database.query("select * from trades where symbol='ONLY_B'")).rows[0];assert.notEqual(bTrade.account_id,aTrade.account_id);
   const updated=await a.submit(editPath,{...input,notes:'Owner correction'},editHtml);assert.equal(updated.status,303);
+  assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,'Owner correction');
+  const replayAfterEdit=await a.submit('/trades/new',input,newTradeHtml);assert.equal(replayAfterEdit.headers.get('location'),tradePath);
   assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,'Owner correction');
   const firstOwner=(await database.query('select user_id from trading_accounts where id=$1',[aTrade.account_id])).rows[0].user_id;
   assert.equal((await database.query('select count(*)::int n from trading_accounts where user_id=$1 and is_default',[firstOwner])).rows[0].n,1);
@@ -165,6 +194,13 @@ try {
       }
       await pages[0].goto(base.replace('127.0.0.1','localhost')+'/trades/new');
       for(const [name,value]of Object.entries(input)) {const field=pages[0].locator(`[name="${name}"]`);if(name==='direction')await field.selectOption(value);else await field.fill(value);}
+      const browserSubmissionKey=await pages[0].locator('[name="submissionKey"]').inputValue();
+      await pages[0].locator('[name="pnl"]').fill('1');
+      await pages[0].getByRole('button',{name:'Save trade',exact:true}).click();
+      await pages[0].getByRole('alert').filter({hasText:'P&L can only be recorded'}).waitFor();
+      assert.equal(await pages[0].locator('[name="submissionKey"]').inputValue(),browserSubmissionKey);
+      assert.equal(await pages[0].locator('[name="symbol"]').inputValue(),'ONLY_A');
+      await pages[0].locator('[name="pnl"]').fill('');
       await pages[0].getByRole('button',{name:'Save trade',exact:true}).click();await pages[0].waitForURL(/\/trades\/[a-f0-9-]+$/);
       const path=new URL(pages[0].url()).pathname;await pages[0].reload();assert.ok((await pages[0].textContent('body')).includes('A private rationale'));
       await pages[0].getByLabel('Did you follow your plan?').selectOption('partly');

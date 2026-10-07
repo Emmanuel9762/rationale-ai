@@ -105,3 +105,27 @@ five verified migrations, zero pending, and successful schema checks. Start the
 app only after both commands succeed. Existing CP18 code can run with the added
 nullable columns if code rollback is needed; do not drop columns or ledger rows.
 No live Neon migration was performed as part of CP19 implementation.
+
+## CP20 submission protection
+
+`0005_trade_submissions` adds nullable `trades.submission_key` (UUID),
+`submission_hash` (64-character SHA-256 text), and a unique index on
+`(account_id, submission_key)`. Legacy trades remain unchanged with NULL submission
+fields; historical duplicates are not removed. New application saves require keys.
+
+Stop the dev server. Back up/rehearse on a disposable copy as above, keeping the
+intended database and Auth pairing. With the correct target in `.env.local`:
+
+```fish
+set -e DATABASE_URL
+npm run db:migrate
+npm run db:verify
+```
+
+Expect six verified migrations, zero pending, and successful required schema
+checks. Start the app only after success. No new environment variables or packages
+are needed. Open a fresh new-trade form after upgrading; a previously open CP19
+form has no submission key and will be rejected. Older app code remains compatible
+with the additive schema but does not provide retry protection. Do not drop columns
+or alter migration history during rollback. The migration sequence is not atomic;
+inspect schema/history if applying it is interrupted. No live migration was run here.

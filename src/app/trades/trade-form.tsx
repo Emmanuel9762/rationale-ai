@@ -6,6 +6,7 @@ type Props = {
   action: (state: TradeFormState, data: FormData) => Promise<TradeFormState>;
   initial?: Record<string, string>;
   submitLabel: string;
+  submissionKey?: string;
 };
 const fields = [
   { name: "symbol", label: "Symbol", type: "text", required: true, maxLength: 20 },
@@ -18,11 +19,12 @@ const fields = [
   { name: "setup", label: "Setup", type: "text", required: false, maxLength: 100 },
 ];
 const inputClass = "mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:outline-2 focus:outline-zinc-400";
-export function TradeForm({ action, initial = {}, submitLabel }: Props) {
-  const [state, formAction, pending] = useActionState(action, { error: "" });
+export function TradeForm({ action, initial = {}, submitLabel, submissionKey }: Props) {
+  const [state, formAction, pending] = useActionState<TradeFormState, FormData>(action, { error: "", submissionKey });
   const [values, setValues] = useState(initial);
   function set(name: string, value: string) { setValues(previous => ({ ...previous, [name]: value })); }
   return <form action={formAction} className="space-y-6">
+    {submissionKey && <input type="hidden" name="submissionKey" value={state.submissionKey ?? submissionKey}/> }
     <p className="text-sm text-zinc-400">Leave exit fields blank for an open trade. To close it, enter both exit price and time. Enter realized P&L from your broker; it is not inferred from quantity. All times are UTC.</p>
     {state.error && <p role="alert" className="rounded-lg border border-red-900 bg-red-950 p-4 text-red-100">{state.error}</p>}
     <fieldset disabled={pending} className="grid gap-5 rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 sm:grid-cols-2">

@@ -35,6 +35,8 @@ export const trades = pgTable("trades", {
   accountId: uuid("account_id")
     .notNull()
     .references(() => tradingAccounts.id),
+  submissionKey: uuid("submission_key"),
+  submissionHash: varchar("submission_hash", { length: 64 }),
   symbol: varchar("symbol", { length: 20 }).notNull(),
   direction: varchar("direction", { length: 5 }).notNull(),
   setup: varchar("setup", { length: 100 }),
@@ -51,4 +53,4 @@ export const trades = pgTable("trades", {
   entryTime: timestamp("entry_time").notNull(),
   exitTime: timestamp("exit_time"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, table => [uniqueIndex("trades_account_submission_unique").on(table.accountId, table.submissionKey)]);

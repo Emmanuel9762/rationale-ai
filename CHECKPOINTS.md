@@ -304,3 +304,38 @@ cross-owner and signed-out denial, plus existing journal/performance isolation.
 The initial build hit the previously observed persisted Turbopack cache panic;
 a fresh cache resolved it. Browser checks are committed for CI but were not run
 locally. Live migration and laptop acceptance remain pending.
+
+## CP20 — retry-safe trade creation
+
+New-trade forms receive a server-generated UUID submission key. The action retains
+it across validation/save errors, validates it independently of trade fields, and
+resolves the account from the authenticated owner. A unique account/key index
+arbitrates competing inserts. Replaying the same validated payload returns the
+original trade; a different payload with a used key is rejected. A SHA-256 creation
+fingerprint remains separate from editable trade data, so replay cannot undo later
+edits. Equivalent decimal spellings are normalized without floating-point arithmetic.
+
+This is per-submission protection, not content-based deduplication. Freshly loaded
+forms have new keys and can intentionally save identical trades. After a reload or
+new form, check history if a previous save was uncertain. No browser draft storage
+or offline queue is introduced. Account reassignment/default-account switching is
+not part of the current UI; future support must preserve the submission scope.
+
+Migration 0005 adds nullable submission key/hash columns and their unique index.
+Legacy records retain null values; no historical trades are merged. db:verify
+checks these additions. No dependencies, environment variables or live DB changes.
+
+Verified: 39 tests, lint, production build including TypeScript, signed-out access,
+and full-app HTTP checks. The HTTP fixture commits a trade then returns a failed
+insert response; retrying the returned form finds the original row. Tests also
+cover concurrent replays, changed payloads, validation key retention, different
+owners sharing a key, separate new keys and replay after editing. Existing review,
+filter and performance checks still pass. Hydrated browser key/value retention
+coverage is included for CI; it was not run locally. PGlite concurrency tests do
+not replace a real Neon concurrency rehearsal.
+
+Acceptance update: owner reports trade editing and review persistence working.
+Private-window access with the same credentials is expected; separate-account
+isolation remains a distinct check. Live password-reset email arrives but its link
+loads indefinitely; recovery acceptance remains unresolved. CP20 does not fix or
+claim to fix that issue. PR consolidation and production release remain pending.
