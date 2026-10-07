@@ -6,6 +6,7 @@ import {
   timestamp,
   numeric,
   boolean,
+  integer,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
@@ -35,6 +36,7 @@ export const trades = pgTable("trades", {
   accountId: uuid("account_id")
     .notNull()
     .references(() => tradingAccounts.id),
+  revision: integer("revision").default(0).notNull(),
   submissionKey: uuid("submission_key"),
   submissionHash: varchar("submission_hash", { length: 64 }),
   symbol: varchar("symbol", { length: 20 }).notNull(),

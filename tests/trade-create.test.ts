@@ -47,7 +47,7 @@ test("repeat submissions converge, differing payloads are rejected, new keys and
     }
     assert.equal((await db.select().from(trades)).length, 1);
     // The creation fingerprint must survive later edits; retries must never undo them.
-    await updateOwnedTrade(db, owner.id, originalId, { ...input, notes: "Later correction" });
+    await updateOwnedTrade(db, owner.id, originalId, { ...input, notes: "Later correction" }, 0);
     assert.equal(await createOwnedTrade(db, owner.id, key, input), originalId);
     assert.equal((await tradeRepository(db).find(owner.id, originalId))?.notes, "Later correction");
     const separate = await createOwnedTrade(db, owner.id, randomUUID(), input);

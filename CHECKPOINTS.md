@@ -339,3 +339,42 @@ Private-window access with the same credentials is expected; separate-account
 isolation remains a distinct check. Live password-reset email arrives but its link
 loads indefinitely; recovery acceptance remains unresolved. CP20 does not fix or
 claim to fix that issue. PR consolidation and production release remain pending.
+
+## CP21 — conflict-safe trade and review edits
+
+Trades now carry an integer revision, initially zero. Both trade edits and review
+saves require the form's original revision and increment it in the same SQL UPDATE
+that checks ownership. Exactly one competing save at a given revision can succeed.
+An owned but newer row raises a conflict; missing/other-owner rows remain unavailable
+without revealing their revision or content. Missing/malformed revisions are rejected.
+
+One shared revision intentionally covers both forms: a review based on an outdated
+rationale/outcome must not silently save after a trade edit, and vice versa. This is
+optimistic concurrency control, not an edit history, automatic merge or live sync.
+Create-submission replay remains independent and never increments the revision.
+
+Conflicts retain draft fields and the original revision, disable repeat submission,
+and provide an explicit full reload link labelled as discarding the draft. Copy
+anything needed before loading the latest saved version and reapplying changes.
+Review saves now show an inline success notice and advance their form revision,
+allowing another review edit without a manual refresh. Stable component identity
+keeps a server revalidation from silently replacing a stale draft/revision.
+
+Migration 0006 adds revision NOT NULL DEFAULT 0; existing trade values and reviews
+are preserved. db:verify checks the added column. No new dependencies/environment
+variables and no live database changes. All writers must participate in revision
+checks: an older app instance or direct SQL edit can bypass this application policy.
+
+Verified: 41 tests, lint, production build including TypeScript, signed-out access,
+and full-app HTTP conflict/save/recovery checks. Tests cover competing saves,
+trade/review cross-conflicts, owner isolation, unchanged rows after rejection,
+revision validation, stale draft retention in full-page responses, current-version
+recovery, and successive review saves. CP20 lost-response/retry, filters, metrics
+and review checks still pass. Hydrated two-tab tests are included for CI; Chromium
+is unavailable locally, so local browser acceptance is not claimed.
+
+Acceptance update: owner reports all 39 CP20 tests passed locally and db:verify
+confirmed six migrations with zero pending. Password-reset link loading remains
+unresolved; separate-account isolation acceptance and PR consolidation remain pending.
+Next planned feature checkpoint: CP22 review queue/status filters, after reconciling
+CP21 verification and the outstanding recovery issue.
