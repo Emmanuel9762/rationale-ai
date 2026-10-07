@@ -198,7 +198,19 @@ try {
   assert.match(await(await a.request('/trades?review=reviewed')).text(),/QUEUE_A/);
   assert.match(await(await a.request('/trades?review=invalid')).text(),/Check your filters/);
   console.log('Review queue HTTP: closed/unreviewed scope, save removes row, owner isolation and invalid filters passed.');
+  const exportResponse=await a.request('/trades/export?symbol=ONLY_A&page=2');assert.equal(exportResponse.status,200);
+  assert.match(exportResponse.headers.get('content-type'),/text\/csv/);assert.match(exportResponse.headers.get('cache-control'),/no-store/);
+  assert.match(exportResponse.headers.get('content-disposition'),/attachment/);
+  const csv=await exportResponse.text();assert.equal((csv.match(/"ONLY_A"/g)??[]).length,26);assert.ok(!csv.includes('ONLY_B'));assert.ok(!csv.includes('submission_hash'));
+  const otherCsv=await(await b.request('/trades/export')).text();assert.ok(otherCsv.includes('ONLY_B'));assert.ok(!otherCsv.includes('ONLY_A'));
+  assert.equal((await a.request('/trades/export?review=bad')).status,400);
+  assert.equal((await a.request('/trades/export?symbol=ONLY_A&symbol=ONLY_B')).status,400);
+  const emptyCsv=await(await a.request('/trades/export?symbol=MISSING')).text();assert.equal(emptyCsv.trim().split('\r\n').length,1);
+  await database.query("insert into trades(account_id,symbol,direction,entry_price,quantity,entry_time) select $1,'EXPORT_LIMIT','LONG',1,1,'2026-01-01'::timestamp from generate_series(1,2001)",[aTrade.account_id]);
+  assert.equal((await a.request('/trades/export?symbol=EXPORT_LIMIT')).status,422);
+  console.log('Export HTTP: all filtered pages, private attachment headers, owner isolation, invalid/empty/oversized responses passed.');
   await a.submit('/account',{});
+  assert.equal((await a.request('/trades/export')).headers.get('location'),'/sign-in');
   const deniedReview=await a.submit(tradePath,review,reviewHtml);assert.equal(deniedReview.headers.get('location'),'/sign-in');
   assert.equal((await database.query('select review_improve from trades where id=$1',[aTrade.id])).rows[0].review_improve,'Revised reflection');
   const denied=await a.submit(editPath,{...input,notes:'SIGNED OUT'},editHtml);assert.equal(denied.headers.get('location'),'/sign-in');
@@ -265,6 +277,11 @@ try {
       await pages[0].getByRole('link',{name:'Clear filters',exact:true}).first().click();
       await pages[0].waitForURL(url=>url.pathname==='/trades'&&!url.search);
       assert.ok((await pages[0].textContent('table')).includes('ONLY_A'));
+      const downloadEvent=pages[0].waitForEvent('download');
+      await pages[0].getByRole('link',{name:'Export matching trades (CSV)',exact:true}).click();
+      const download=await downloadEvent;assert.equal(download.suggestedFilename(),'rationale-trades.csv');
+      const browserCsv=await readFile(await download.path(),'utf8');assert.ok(browserCsv.includes('ONLY_A'));assert.ok(!browserCsv.includes('ONLY_B'));
+
       console.log('Two isolated Chromium contexts: signup, trade creation, refresh and cross-user denial passed.');
     } finally {await browser.close();}
   }

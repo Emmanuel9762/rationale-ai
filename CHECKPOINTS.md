@@ -402,4 +402,31 @@ reflection was saved, not that it was written after the most recent trade edit.
 Verified: 42 tests, lint, production build/typecheck, and HTTP queue/save/ownership
 checks. Tests cover >25 matches, incomplete/open trades, another owner, saved-review
 removal, invalid filters and combined selections. No migration or dependencies.
-CP22's browser result remains pending while its remote Chromium installation runs.
+CP22 browser validation recovery passed remotely; its later conflict check exposed
+a textarea label lookup issue. Follow-up markup separates labels from textarea
+content so labels remain stable after a controlled value changes.
+
+## CP24 — private, filtered CSV export
+
+History exports all matching trades across pages, in the same stable order and
+with the same owner/filter predicates as the journal. Export is capped at 2,000
+rows; larger selections return an explicit error without silently truncating.
+CSV preserves recorded decimal strings and UTC timestamps, handles quotes and
+multiline text, and prefixes formula-like text with an apostrophe. Numeric fields
+remain numeric text, including negative P&L. Empty matches produce a header.
+
+The authenticated download is private/no-store and excludes auth information,
+submission keys/hashes and concurrency metadata. Notes and review text are included;
+this is a journal export, not a full database backup. Invalid filters fail closed.
+No dependencies, environment changes or migrations; CP21's revision migration
+remains required (seven migrations total). No live database changes were made.
+
+Verified: 44 unit/database tests, lint, production build/typecheck, seven signed-out
+route checks, and full-app HTTP tests including all-page export, cross-owner denial,
+invalid/duplicate filters, empty results, size limit and download headers. Browser
+download and conflict checks are included in CI; see PR checks for their final result.
+
+Acceptance: correct an invalid create form without losing its values; open Needs
+review, save a closed trade's reflection and confirm it leaves the queue; export
+a filtered journal and check matching trades from all pages and notes/reviews.
+The previously reported real-provider password-reset link issue remains unresolved.

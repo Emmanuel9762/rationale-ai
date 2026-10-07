@@ -1,7 +1,7 @@
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import Link from "next/link";
 import { db } from "@/db";
-import { tradeRepository } from "@/lib/trade-repository";
+import { EXPORT_LIMIT, tradeRepository } from "@/lib/trade-repository";
 
 import { parseJournalFilters, journalHref, type JournalSearchParams } from "@/lib/journal-filters";
 
@@ -27,6 +27,7 @@ export default async function TradesPage({ searchParams }: { searchParams: Promi
         <label>Entry through (UTC)<input className={field} name="to" type="date" defaultValue={filters.to ?? ""} /></label>
         <div className="flex items-center gap-4 sm:col-span-2 lg:col-span-5"><button className="rounded bg-zinc-100 px-4 py-2 text-zinc-950">Apply filters</button><Link className="underline" href="/trades">Clear filters</Link></div>
       </form>
+      {!errors.length && <p className="text-sm text-zinc-400"><a className="underline" href={journalHref(filters).replace("/trades", "/trades/export")}>Export matching trades (CSV)</a> · All matching pages, up to {EXPORT_LIMIT} trades. Includes notes and reviews, UTC times and recorded account-currency amounts; no conversion. Formula-like text gets a protective apostrophe. CSV is not a database backup.</p>}
       {errors.length > 0 ? <div role="alert" className="rounded-xl border border-red-900 p-4 text-red-300"><p>Check your filters:</p><ul className="list-inside list-disc">{errors.map(error => <li key={error}>{error}</li>)}</ul></div> : <>
       {!result.trades.length ? <p className="rounded-xl border border-zinc-800 p-6">{page > 1 ? <>No trades on this page. <Link className="underline" href={journalHref(filters)}>Return to the first page</Link>.</> : active ? <>No trades match these filters. <Link className="underline" href="/trades">Clear filters</Link> to see your journal.</> : <>No trades yet. <Link className="underline" href="/trades/new">Log a trade</Link> to start your journal.</>}</p> : <div className="overflow-x-auto rounded-xl border border-zinc-800"><table className="w-full text-left text-sm">
         <thead className="bg-zinc-900 text-zinc-400"><tr>{["Symbol", "Direction", "Entry time (UTC)", "Status", "Recorded P&L", "Review"].map(label => <th key={label} className="p-4">{label}</th>)}</tr></thead>
