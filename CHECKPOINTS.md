@@ -378,3 +378,14 @@ confirmed six migrations with zero pending. Password-reset link loading remains
 unresolved; separate-account isolation acceptance and PR consolidation remain pending.
 Next planned feature checkpoint: CP22 review queue/status filters, after reconciling
 CP21 verification and the outstanding recovery issue.
+
+## CP22 — preserve controlled forms after validation
+
+CP21's remote browser gate failed on correcting an invalid create form and saving
+again; unit, HTTP, auth and build gates passed. Controlled trade/review forms now
+cancel the native reset fired when a React action completes, preserving selector
+and input state until explicit navigation/reload. The browser regression checks
+all entered fields after the server-side validation error, then corrects and saves.
+No schema or dependencies change. Browser confirmation is delegated to CI because
+workspace Chromium downloads return invalid archives. This repair takes priority
+over adding archive/restore; the next increments are review queue and CSV export.

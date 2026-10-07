@@ -13,7 +13,7 @@ export function ReviewForm({ action, initial, revision, reloadHref }: Props) {
   const [state, formAction, pending] = useActionState<TradeFormState, FormData>(action, { error: "", revision });
   const [values, setValues] = useState<Record<string, string | null>>(state.values ?? initial);
   function set(name: string, value: string) { setValues(previous => ({ ...previous, [name]: value })); }
-  return <form action={formAction} className="space-y-4">
+  return <form onReset={event => event.preventDefault()} action={formAction} className="space-y-4">
     <input type="hidden" name="revision" value={state.revision ?? revision}/>
     {state.notice && <p role="status">{state.notice}</p>}
     {state.conflict && <a className="block underline" href={reloadHref}>Load latest saved version (discards this draft)</a>}

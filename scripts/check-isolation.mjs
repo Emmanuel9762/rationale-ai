@@ -213,7 +213,7 @@ try {
       await pages[0].getByRole('button',{name:'Save trade',exact:true}).click();
       await pages[0].getByRole('alert').filter({hasText:'P&L can only be recorded'}).waitFor();
       assert.equal(await pages[0].locator('[name="submissionKey"]').inputValue(),browserSubmissionKey);
-      assert.equal(await pages[0].locator('[name="symbol"]').inputValue(),'ONLY_A');
+      for (const [name,value] of Object.entries(input)) assert.equal(await pages[0].locator(`[name="${name}"]`).inputValue(),value,`validation preserves ${name}`);
       await pages[0].locator('[name="pnl"]').fill('');
       await pages[0].getByRole('button',{name:'Save trade',exact:true}).click();await pages[0].waitForURL(/\/trades\/[a-f0-9-]+$/);
       const path=new URL(pages[0].url()).pathname;await pages[0].reload();assert.ok((await pages[0].textContent('body')).includes('A private rationale'));

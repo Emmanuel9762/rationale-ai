@@ -25,7 +25,7 @@ export function TradeForm({ action, initial = {}, submitLabel, submissionKey, re
   const [state, formAction, pending] = useActionState<TradeFormState, FormData>(action, { error: "", submissionKey, revision });
   const [values, setValues] = useState(state.values ?? initial);
   function set(name: string, value: string) { setValues(previous => ({ ...previous, [name]: value })); }
-  return <form action={formAction} className="space-y-6">
+  return <form onReset={event => event.preventDefault()} action={formAction} className="space-y-6">
     {revision !== undefined && <input type="hidden" name="revision" value={state.revision ?? revision}/> }
     {state.conflict && reloadHref && <a className="block underline" href={reloadHref}>Load latest saved version (discards this draft)</a>}
     {submissionKey && <input type="hidden" name="submissionKey" value={state.submissionKey ?? submissionKey}/> }
