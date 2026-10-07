@@ -25,7 +25,7 @@ export function ReviewForm({ action, initial, revision, reloadHref }: Props) {
           <option value="" disabled>Select an answer</option><option value="followed">Followed my plan</option><option value="partly">Partly followed my plan</option><option value="not_followed">Did not follow my plan</option>
         </select>
       </label>
-      {[["reviewWentWell", "What went well?"], ["reviewImprove", "What would you improve next time?"]].map(([name, label]) => <label key={name} htmlFor={name} className="block">{label}<textarea id={name} name={name} rows={3} maxLength={2000} value={values[name as keyof typeof values] ?? ""} onChange={event => set(name, event.target.value)} className={inputClass}/></label>)}
+      {[["reviewWentWell", "What went well?"], ["reviewImprove", "What would you improve next time?"]].map(([name, label]) => <div key={name}><label className="block" htmlFor={name}>{label}</label><textarea id={name} name={name} rows={3} maxLength={2000} value={values[name as keyof typeof values] ?? ""} onChange={event => set(name, event.target.value)} className={inputClass}/></div>)}
     </fieldset>
     <button type="submit" disabled={pending || state.conflict} className="rounded-lg bg-zinc-100 px-4 py-2 text-zinc-950 disabled:opacity-50">{pending ? "Saving…" : "Save review"}</button>
   </form>;
