@@ -430,3 +430,11 @@ Acceptance: correct an invalid create form without losing its values; open Needs
 review, save a closed trade's reflection and confirm it leaves the queue; export
 a filtered journal and check matching trades from all pages and notes/reviews.
 The previously reported real-provider password-reset link issue remains unresolved.
+
+### Browser recovery follow-up
+
+The remote browser checks exposed a genuine review-recovery issue: the reload
+link included #review, causing same-document scrolling and retaining a stale
+draft. Its target now omits the fragment so recovery reloads server data. Both
+edit/review tests explicitly wait for DOMContentLoaded before inspecting the
+recovered form; this prevents a premature assertion from hiding navigation bugs.
