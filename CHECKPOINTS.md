@@ -438,3 +438,29 @@ link included #review, causing same-document scrolling and retaining a stale
 draft. Its target now omits the fragment so recovery reloads server data. Both
 edit/review tests explicitly wait for DOMContentLoaded before inspecting the
 recovered form; this prevents a premature assertion from hiding navigation bugs.
+
+## CP25 — performance by entry-date period
+
+Performance now accepts optional From/Through entry dates in UTC for both setup
+and symbol breakdowns. SQL filters run before aggregation and remain combined
+with account ownership. The end day is inclusive via an exclusive next-midnight
+boundary; trades closed later still belong to their entry-date period. Blank
+bounds are unrestricted. Dashboard totals remain all-time. Matching history links
+carry the same dates, and All time clears the range and its form values.
+
+Existing journal date validation rejects invalid, reversed and repeated dates;
+invalid requests render errors without querying/rendering breakdown totals. Empty
+periods have a distinct message. URLs preserve the range for refresh/bookmark use.
+No schema, dependencies or environment changes. No live database writes performed.
+
+Verified locally: 45 tests, lint, clean production build/typecheck, and full-app
+HTTP checks for selected/empty/invalid ranges, matching history links and owner
+scope. Boundary tests cover start/end midnight, one-sided ranges, later exits,
+open trades, exact decimal totals and both grouping dimensions. Browser checks
+apply an empty range then restore All time and verify the date input clears;
+these run in GitHub CI because workspace Chromium installation is unavailable.
+
+Acceptance: choose a period containing known entries, inspect both tables and
+View matching trades; choose an empty period; reverse the dates; restore All time.
+CP22–24 CI passed on 49b3827. Their live local acceptance, real-provider reset-link
+recovery, and PR consolidation remain pending unless separately confirmed.

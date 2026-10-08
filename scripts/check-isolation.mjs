@@ -188,6 +188,14 @@ try {
   const performanceAfter = await(await a.request('/performance')).text();
   assert.match(performanceAfter,/OWNER_SETUP/);assert.match(performanceAfter,/12\.34/);assert.match(performanceAfter,/100\.0%/);
   const otherPerformance = await(await b.request('/performance')).text();assert.ok(otherPerformance.includes('ONLY_B'));assert.ok(!otherPerformance.includes('OWNER_SETUP'));assert.ok(!otherPerformance.includes('ONLY_A'));
+  const datedPerformance=await(await a.request('/performance?from=2026-01-01&to=2026-01-01')).text();
+  assert.match(datedPerformance,/OWNER_SETUP/);assert.match(datedPerformance,/12\.34/);assert.ok(!datedPerformance.includes('ONLY_B'));
+  assert.match(datedPerformance,/href="\/trades\?from=2026-01-01&amp;to=2026-01-01"/);
+  assert.match(await(await a.request('/performance?from=2027-01-01')).text(),/No trades match these entry dates/);
+  for(const query of ['from=2026-02-30','from=2026-02-01&to=2026-01-01','from=2026-01-01&from=2026-01-02']) {
+    const html=await(await a.request('/performance?'+query)).text();assert.match(html,/Check your dates/);assert.ok(!html.includes('<table'));
+  }
+  console.log('Performance periods HTTP: matching journal link, empty range, invalid/repeated dates and owner scope passed.');
   console.log('Performance HTTP: setup/symbol groups, unmeasured display, recorded results and owner isolation passed.');
   const queueRow=(await database.query("insert into trades(account_id,symbol,direction,entry_price,quantity,entry_time,exit_price,exit_time) values ($1,'QUEUE_A','LONG',1,1,'2026-01-01',2,'2026-01-02') returning id",[aTrade.account_id])).rows[0];
   const queuePath='/trades?status=closed&review=unreviewed';
@@ -266,6 +274,13 @@ try {
       await pages[0].goto(base.replace('127.0.0.1','localhost')+'/performance');
       await pages[0].getByRole('heading',{name:'Performance breakdowns',exact:true}).waitFor();
       assert.ok((await pages[0].getByRole('region',{name:'By symbol',exact:true}).textContent()).includes('ONLY_A'));
+      await pages[0].getByLabel('From entry date (UTC)',{exact:true}).fill('2027-01-01');
+      await pages[0].getByRole('button',{name:'Apply dates',exact:true}).click();
+      await pages[0].getByText('No trades match these entry dates.',{exact:false}).waitFor();
+      assert.equal(new URL(pages[0].url()).searchParams.get('from'),'2027-01-01');
+      await pages[0].getByRole('link',{name:'All time',exact:true}).click();
+      await pages[0].getByRole('region',{name:'By symbol',exact:true}).waitFor();
+      assert.equal(await pages[0].getByLabel('From entry date (UTC)',{exact:true}).inputValue(),'');
       await pages[1].goto(base.replace('127.0.0.1','localhost')+'/performance');
       await pages[1].getByText('No trades yet.',{exact:false}).waitFor();
       await pages[1].goto(base.replace('127.0.0.1','localhost')+path);assert.ok(!(await pages[1].textContent('body')).includes('A private rationale'));
