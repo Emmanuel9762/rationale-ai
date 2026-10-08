@@ -252,14 +252,14 @@ try {
       await editTab.getByRole('button',{name:'Save changes',exact:true}).click();
       await editTab.getByRole('alert').filter({hasText:'changed after you opened'}).waitFor();
       assert.equal(await editTab.getByLabel('Notes',{exact:true}).inputValue(),'STALE_BROWSER_TRADE');
-      await editTab.getByRole('link',{name:'Load latest saved version (discards this draft)',exact:true}).click();
+      await Promise.all([editTab.waitForEvent('domcontentloaded'), editTab.getByRole('link',{name:'Load latest saved version (discards this draft)',exact:true}).click()]);
       await editTab.getByLabel('Notes',{exact:true}).fill('Fresh browser correction');
       await editTab.getByRole('button',{name:'Save changes',exact:true}).click();await editTab.waitForURL('**'+path);
       await pages[0].getByLabel('What went well?').fill('STALE_BROWSER_REVIEW');
       await pages[0].getByRole('button',{name:'Save review',exact:true}).click();
       await pages[0].getByRole('alert').filter({hasText:'changed after you opened'}).waitFor();
       assert.equal(await pages[0].getByLabel('What went well?').inputValue(),'STALE_BROWSER_REVIEW');
-      await pages[0].getByRole('link',{name:'Load latest saved version (discards this draft)',exact:true}).click();
+      await Promise.all([pages[0].waitForEvent('domcontentloaded'), pages[0].getByRole('link',{name:'Load latest saved version (discards this draft)',exact:true}).click()]);
       assert.equal(await pages[0].getByLabel('What went well?').inputValue(),'New browser reflection');
       await editTab.close();
 
