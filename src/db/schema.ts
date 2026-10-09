@@ -56,3 +56,12 @@ export const trades = pgTable("trades", {
   exitTime: timestamp("exit_time"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, table => [uniqueIndex("trades_account_submission_unique").on(table.accountId, table.submissionKey)]);
+
+export const tradeImports = pgTable("trade_imports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  accountId: uuid("account_id").notNull().references(() => tradingAccounts.id),
+  payloadHash: varchar("payload_hash", { length: 64 }).notNull(),
+  rowCount: integer("row_count").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, table => [uniqueIndex("trade_imports_owner_payload_unique").on(table.userId, table.payloadHash)]);

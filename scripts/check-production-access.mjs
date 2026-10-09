@@ -31,6 +31,7 @@ try {
   const manifest = JSON.parse(await readFile(".next/server/server-reference-manifest.json", "utf8"));
   for (const [name, path, args] of [
     ["createTrade", "/trades/new", [{ error: "" }, {}]],
+    ["importTradeCsv", "/trades/preview", [{}]],
     ["updateTrade", `/trades/${id}/edit`, [id, { error: "" }, {}]],
   ]) {
     const entry = Object.entries(manifest.node).find(([, action]) => action.exportedName === name);
@@ -48,7 +49,7 @@ try {
   const signIn = await fetch(base + "/sign-in");
   assert.equal(signIn.status, 200);
   assert.match(await signIn.text(), /Sign in to your journal/);
-  console.log("Production access: 8 protected routes and both save actions redirect; sign-in page is accessible.");
+  console.log("Production access: 8 protected routes and save/import actions redirect; sign-in page is accessible.");
 } finally {
   const exited = once(child, "exit");
   if (child.exitCode === null) { child.kill("SIGTERM"); await exited; }
