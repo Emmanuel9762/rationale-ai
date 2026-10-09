@@ -86,6 +86,7 @@ try {
   for(const [client,email]of [[a,'a@example.test'],[b,'b@example.test']]) {
     const r=await client.submit('/sign-up',{name:email,email,password:'fixture-password'});assert.equal(r.status,303);
   }
+  assert.match(await(await a.request('/trades/preview')).text(),/Preview trade CSV/);
   const input={symbol:'ONLY_A',direction:'LONG',entryPrice:'1.5',quantity:'2',entryTime:'2026-01-01T12:00',rationale:'A private rationale'};
   const newTradeHtml=await(await a.request('/trades/new')).text();
   const keyFrom=html=>html.match(/name="submissionKey"[^>]*value="([^"]+)"/)[1];
@@ -295,6 +296,31 @@ try {
       await Promise.all([pages[0].waitForEvent('domcontentloaded'), pages[0].getByRole('link',{name:'Load latest saved version (discards this draft)',exact:true}).click()]);
       assert.equal(await pages[0].getByLabel('What went well?').inputValue(),'New browser reflection');
       await editTab.close();
+
+      const beforeCsv=JSON.stringify((await database.query('select * from trades order by id')).rows);
+      await pages[0].goto(base.replace('127.0.0.1','localhost')+'/trades');
+      await pages[0].getByRole('link',{name:'Preview CSV',exact:true}).click();
+      await pages[0].getByRole('heading',{name:'Preview trade CSV',exact:true}).waitFor();
+      const csvPosts=[];
+      const observeCsv=request=>{if(request.method()==='POST')csvPosts.push(request.url());};
+      pages[0].on('request',observeCsv);
+      await pages[0].getByLabel('Trade CSV',{exact:true}).setInputFiles(resolve('public/samples/rationaleai-mock-trades.csv'));
+      await pages[0].getByRole('button',{name:'Preview CSV',exact:true}).click();
+      await pages[0].getByRole('status').filter({hasText:'36 records: 30 valid, 6 invalid, 2 repeated. No trades saved.'}).waitFor();
+      await pages[0].getByText('Record 32: quantity must be greater than zero',{exact:true}).waitFor();
+      await pages[0].getByText('Repeats 4',{exact:true}).waitFor();
+      await pages[0].getByText('Details for record 5',{exact:true}).click();
+      await pages[0].getByText('Comma, quoted "patience" and a second line.',{exact:true}).waitFor();
+      assert.equal(JSON.stringify((await database.query('select * from trades order by id')).rows),beforeCsv,'preview cannot change stored trades');
+      await pages[0].getByLabel('Trade CSV',{exact:true}).setInputFiles({name:'broken.csv',mimeType:'text/csv',buffer:Buffer.from('symbol,direction\nBAD,LONG')});
+      assert.equal(await pages[0].getByRole('region',{name:'CSV results',exact:true}).count(),0,'changing files clears stale results');
+      await pages[0].getByRole('button',{name:'Preview CSV',exact:true}).click();
+      await pages[0].getByRole('alert').filter({hasText:'Missing required columns'}).waitFor();
+      await pages[0].getByRole('button',{name:'Clear preview',exact:true}).click();
+      assert.equal(await pages[0].getByRole('alert').count(),0);
+      assert.deepEqual(csvPosts,[],'CSV stays in the browser');
+      pages[0].off('request',observeCsv);
+      console.log('CSV browser: sample counts, row errors, repeats, multiline details, reset and no upload/database writes passed.');
 
       await pages[0].goto(base.replace('127.0.0.1','localhost')+'/performance');
       await pages[0].getByRole('heading',{name:'Performance breakdowns',exact:true}).waitFor();
