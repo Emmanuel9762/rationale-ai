@@ -16,7 +16,7 @@ export default async function TradesPage({ searchParams }: { searchParams: Promi
   const field = "mt-1 block w-full rounded border border-zinc-700 bg-zinc-900 p-2";
   return <main className="min-h-screen bg-zinc-950 px-6 py-10 text-zinc-100">
     <div className="mx-auto max-w-5xl space-y-6">
-      <nav className="flex flex-wrap gap-5 text-sm"><Link href="/account">Account</Link><Link href="/">Dashboard</Link><Link href="/performance">Performance</Link><Link href="/trades/new">Log a trade</Link></nav>
+      <nav className="flex flex-wrap gap-5 text-sm"><Link href="/account">Account</Link><Link href="/">Dashboard</Link><Link href="/performance">Performance</Link><Link href="/trades/new">Log a trade</Link><Link href="/trades/preview">Preview CSV</Link></nav>
       <header><h1 className="text-2xl font-semibold">Trade history</h1><p className="mt-2 text-zinc-400">Your saved entries and the reasoning behind them.</p></header>
       <p className="text-sm text-zinc-400"><Link className="underline" href={journalHref({status:"closed",review:"unreviewed"})}>Needs review</Link>: closed trades without a saved review. Reviewed means a reflection has been saved; later trade edits do not clear it.</p>
       <form action="/trades" method="get" key={journalHref(filters)} className="grid gap-4 rounded-xl border border-zinc-800 p-4 sm:grid-cols-2 lg:grid-cols-5" aria-label="Journal filters">
