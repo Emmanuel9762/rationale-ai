@@ -21,6 +21,9 @@ async function main() {
   if (status.pending) { console.error("Apply pending migrations on a disposable branch first; see MIGRATIONS.md."); process.exitCode=1; return; }
   const result = await db.execute(sql`
     select
+      (select count(*)=6 from information_schema.columns where table_schema='public' and table_name='trade_imports' and is_nullable='NO' and ((column_name in ('id','user_id','account_id') and data_type='uuid') or (column_name='payload_hash' and data_type='character varying' and character_maximum_length=64) or (column_name='row_count' and data_type='integer') or (column_name='created_at' and data_type='timestamp without time zone'))) as import_columns_ok,
+      exists(select 1 from pg_index where indexrelid=to_regclass('public.trade_imports_owner_payload_unique') and indrelid=to_regclass('public.trade_imports') and indisvalid and indisunique and indpred is null and pg_get_indexdef(indexrelid) like '%(user_id, payload_hash)%') as import_index_ok,
+      (select count(*)=2 from pg_constraint where conrelid=to_regclass('public.trade_imports') and contype='f' and convalidated and conname in ('trade_imports_user_id_users_id_fk','trade_imports_account_id_trading_accounts_id_fk')) as import_foreign_keys_ok,
       exists(select 1 from information_schema.columns where table_schema='public' and table_name='trades' and column_name='revision' and data_type='integer' and is_nullable='NO' and column_default='0') as revision_ok,
       exists(select 1 from information_schema.columns where table_schema='public' and table_name='trades' and column_name='submission_key' and data_type='uuid' and is_nullable='YES') as submission_key_ok,
       exists(select 1 from information_schema.columns where table_schema='public' and table_name='trades' and column_name='submission_hash' and data_type='character varying' and character_maximum_length=64 and is_nullable='YES') as submission_hash_ok,
@@ -34,10 +37,10 @@ async function main() {
       exists(select 1 from pg_index where indexrelid=to_regclass('public.trading_accounts_one_default_per_user') and indrelid='public.trading_accounts'::regclass and indisvalid and indisunique and pg_get_indexdef(indexrelid) like '%(user_id)%' and pg_get_expr(indpred,indrelid)='(is_default = true)') as default_index_ok
   `);
   if (!Object.values(result.rows[0]).every(value => value === true)) {
-    console.error("Required identity/default-account/review/submission/revision schema checks failed. Compare the schema before changing anything.");
+    console.error("Required identity/default-account/review/submission/revision/import schema checks failed. Compare the schema before changing anything.");
     process.exitCode=1; return;
   }
-  console.log("Required identity/default-account/review/submission/revision columns and unique indexes verified. No database writes performed.");
+  console.log("Required identity/default-account/review/submission/revision/import columns and unique indexes verified. No database writes performed.");
 }
 main().catch(error => {
   console.error("Database verification failed. Check target branch, connectivity and migration history; do not reset or manufacture ledger entries.");

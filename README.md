@@ -6,10 +6,17 @@ mock file on that page, select it, and press **Preview CSV**. Expect **36 record
 failures; remove them for a valid-only file. Quoted multiline notes count as one
 CSV record. See CP29 in [CHECKPOINTS.md](CHECKPOINTS.md) for individual cases.
 
-This checkpoint previews files in your browser only. It does not upload them,
-insert trades, or compare duplicates against your saved journal. Existing CSV
-exports can be validated; their identity/timestamp metadata is ignored. The page
-documents supported headers, UTC timestamps, review rules and file limits.
+Preview stays in your browser. Once every record is valid, **Confirm import**
+sends the CSV for server validation and saves the entire batch to your default
+account. Repeated records require explicit acknowledgement. The same validated
+batch in the same order returns its original receipt on retry or reload; different
+or overlapping files are not deduplicated. Imported reviews are timestamped at
+import time. No currency conversion or balance adjustment is performed.
+
+CP30 requires migration `0007_trade_imports`. Follow [MIGRATIONS.md](MIGRATIONS.md)
+before starting the updated app. The sample's final six invalid records must be
+removed before importing; its two repeated records can be kept intentionally.
+Use a test account for mock data. Preview alone never changes the journal.
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 

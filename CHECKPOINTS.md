@@ -598,3 +598,49 @@ history → Preview CSV, download the mock file and preview it. Expect the count
 above and no new trades in history. CP29 is stacked on CP28 (#15). Next checkpoint:
 explicit batch confirmation with server-side revalidation, owner-derived account
 selection, atomic insertion and retry protection before enabling CSV saves.
+
+## CP30 — confirmed CSV imports with batch retry protection
+
+The preview page now offers Confirm import only when every record is valid.
+Saving requires explicit confirmation, plus a separate acknowledgement for repeats
+within the file. The authenticated action re-parses and validates the complete CSV
+on the server, derives the owner's default account and saves all records. Preview
+alone still sends no CSV and performs no trade writes. Account balances and
+existing trades are unchanged. Imported reviews use import time; CSV identity and
+creation/review timestamps remain ignored metadata.
+
+Migration 0007 adds owner-scoped batch receipts. A versioned SHA-256 fingerprint
+covers normalized trade/review fields in record order, retaining exact decimals
+and UTC milliseconds. Equivalent decimal spellings share a fingerprint. The
+unique owner/payload index arbitrates concurrent claims. A single SQL statement
+claims the receipt and inserts every trade; any insertion failure rolls back both.
+A separate read obtains the winning receipt after a conflicting insert finishes.
+Default-account resolution happens first and may leave an empty account on failure.
+
+Replaying the same batch after a timeout, reload or later trade edit returns its
+original receipt without inserting or reverting trades. This is not row-level
+history deduplication: different or reordered files can overlap saved trades.
+Repeated rows are intentionally preserved after acknowledgement. Receipt hashes
+must remain stable across later code changes, and receipts must not be deleted to
+clear UI state. The browser freezes file controls during a save and retains the
+source for retries after an uncertain response.
+
+Verified locally: 58 tests, lint, typecheck, production build, signed-out access
+including the import action, and full-app HTTP isolation. Tests include validation
+before writes, parallel requests, cross-owner scope, forged ownership, exact
+values, reviews, retry after edits, migration replay, forced mid-batch rollback and
+a committed import with a lost response. HTTP fixtures exercise the real Server
+Action and transport; PGlite supplies the isolated SQL engine, not live Neon
+concurrency timing. CI Chromium checks confirmation, saving, reload/replay and
+journal visibility in addition to the previous preview-only checks.
+
+Before local use, stop the app and follow MIGRATIONS.md's backup/disposable-copy
+rehearsal. Apply migration 0007 with db:migrate and run db:verify; expect eight
+verified migrations and zero pending. No live migration, dependency or environment
+change was performed. Fetch and switch to `codex/cp30-csv-import` (stacked on CP29,
+PR #16). Use a test account, remove records 32–37 from the CP29 mock file, preview,
+acknowledge its intentional repeats and confirm. Expect 30 imported trades;
+reloading and confirming the same file must leave the count unchanged.
+
+Next useful checkpoint: import history with batch provenance so users can inspect
+the receipt and the trades created by each batch after leaving the preview page.
