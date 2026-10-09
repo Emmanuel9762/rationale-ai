@@ -27,7 +27,7 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
       <h2 id="review-title" className="text-xl font-semibold">Trade review</h2>
       <p className="text-sm text-zinc-400">Reflect on your execution separately from profit or loss. Reviews are available for open and closed trades. Choose an answer and add at least one reflection (up to 2,000 characters each). Saving replaces your previous review.</p>
       <p className="text-sm">{trade.reviewedAt ? `Last saved (UTC): ${trade.reviewedAt.toISOString()}` : "Not reviewed yet."}</p>
-      <ReviewForm key={trade.reviewedAt?.toISOString() ?? "new"} action={saveReview.bind(null, trade.id)} initial={{ planAdherence: trade.planAdherence, reviewWentWell: trade.reviewWentWell, reviewImprove: trade.reviewImprove }}/>
+      <ReviewForm key={trade.id} revision={trade.revision} reloadHref={`/trades/${trade.id}`} action={saveReview.bind(null, trade.id)} initial={{ planAdherence: trade.planAdherence, reviewWentWell: trade.reviewWentWell, reviewImprove: trade.reviewImprove }}/>
     </section>
   </div></main>;
 }

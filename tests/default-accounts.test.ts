@@ -49,8 +49,9 @@ test("upgrade preserves legacy accounts and trades and chooses oldest account wi
     assert.equal(accounts.find(a => a.id === second)?.isDefault, false);
     assert.deepEqual(accounts.map(a => a.balance).sort(), ["12.00", "34.00"]);
     const after = (await client.query<Record<string, unknown>>("SELECT * FROM trades ORDER BY id")).rows;
-    assert.deepEqual(after.map(({ plan_adherence, review_went_well, review_improve, reviewed_at, ...original }) => {
-      assert.deepEqual([plan_adherence, review_went_well, review_improve, reviewed_at], [null, null, null, null]);
+    assert.deepEqual(after.map(({ plan_adherence, review_went_well, review_improve, reviewed_at, submission_key, submission_hash, revision, ...original }) => {
+      assert.deepEqual([plan_adherence, review_went_well, review_improve, reviewed_at, submission_key, submission_hash], [null, null, null, null, null, null]);
+      assert.equal(revision, 0);
       return original;
     }), before);
     await migrate(db, { migrationsFolder: "./drizzle" });
