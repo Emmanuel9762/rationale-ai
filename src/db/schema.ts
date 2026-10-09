@@ -6,6 +6,7 @@ import {
   timestamp,
   numeric,
   boolean,
+  integer,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
@@ -35,11 +36,18 @@ export const trades = pgTable("trades", {
   accountId: uuid("account_id")
     .notNull()
     .references(() => tradingAccounts.id),
+  revision: integer("revision").default(0).notNull(),
+  submissionKey: uuid("submission_key"),
+  submissionHash: varchar("submission_hash", { length: 64 }),
   symbol: varchar("symbol", { length: 20 }).notNull(),
   direction: varchar("direction", { length: 5 }).notNull(),
   setup: varchar("setup", { length: 100 }),
   rationale: varchar("rationale", { length: 2000 }),
   notes: varchar("notes", { length: 2000 }),
+  planAdherence: varchar("plan_adherence", { length: 20 }),
+  reviewWentWell: varchar("review_went_well", { length: 2000 }),
+  reviewImprove: varchar("review_improve", { length: 2000 }),
+  reviewedAt: timestamp("reviewed_at"),
   entryPrice: numeric("entry_price", { precision: 14, scale: 6 }).notNull(),
   exitPrice: numeric("exit_price", { precision: 14, scale: 6 }),
   quantity: numeric("quantity", { precision: 14, scale: 6 }).notNull(),
@@ -47,4 +55,4 @@ export const trades = pgTable("trades", {
   entryTime: timestamp("entry_time").notNull(),
   exitTime: timestamp("exit_time"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, table => [uniqueIndex("trades_account_submission_unique").on(table.accountId, table.submissionKey)]);
