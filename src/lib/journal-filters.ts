@@ -3,6 +3,7 @@ export type JournalFilters = {
   symbol?: string;
   direction?: "LONG" | "SHORT";
   status?: "open" | "closed";
+  review?: "reviewed" | "unreviewed";
   from?: string;
   to?: string;
 };
@@ -30,6 +31,9 @@ export function parseJournalFilters(params: JournalSearchParams) {
   const status = value("status");
   if (status === "open" || status === "closed") filters.status = status;
   else if (status) errors.push("Choose Open / incomplete, Closed, or all statuses.");
+  const review = value("review");
+  if (review === "reviewed" || review === "unreviewed") filters.review = review;
+  else if (review) errors.push("Choose Reviewed, Unreviewed, or all reviews.");
   for (const key of ["from", "to"] as const) {
     const date = value(key);
     if (date && !validDate(date)) errors.push(`Enter a valid ${key} date (YYYY-MM-DD).`);
@@ -43,7 +47,7 @@ export function parseJournalFilters(params: JournalSearchParams) {
 
 export function journalHref(filters: JournalFilters, page = 1) {
   const params = new URLSearchParams();
-  for (const key of ["symbol", "direction", "status", "from", "to"] as const) {
+  for (const key of ["symbol", "direction", "status", "review", "from", "to"] as const) {
     if (filters[key]) params.set(key, filters[key]);
   }
   if (page > 1) params.set("page", String(page));

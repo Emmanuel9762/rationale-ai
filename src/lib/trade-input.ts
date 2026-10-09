@@ -41,4 +41,4 @@ export function parseTradeInput(formData: FormData) {
     setup: text("setup", 100), rationale: text("rationale", 2000), notes: text("notes", 2000) };
 }
 export type TradeInput = ReturnType<typeof parseTradeInput>;
-export type TradeFormState = { error: string; submissionKey?: string };
+export type TradeFormState = { error: string; submissionKey?: string; revision?: number; conflict?: boolean; values?: Record<string, string>; notice?: string };

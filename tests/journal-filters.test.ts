@@ -3,7 +3,7 @@ import test from "node:test";
 import { parseJournalFilters, journalHref } from "../src/lib/journal-filters";
 
 test("journal URLs normalize symbols and retain filters across pagination", () => {
-  const { filters, page, errors } = parseJournalFilters({symbol:" eur/usd ",direction:"SHORT",status:"closed",from:"2024-02-29",to:"2024-03-01",page:"2"});
+  const { filters, page, errors } = parseJournalFilters({symbol:" eur/usd ",direction:"SHORT",status:"closed",review:"unreviewed",from:"2024-02-29",to:"2024-03-01",page:"2"});
   assert.deepEqual(errors, []);
   assert.equal(page, 2);
   assert.equal(filters.symbol, "EUR/USD");
@@ -17,7 +17,7 @@ test("journal URLs normalize symbols and retain filters across pagination", () =
 
 test("invalid and ambiguous filters are reported instead of silently broadening the journal", () => {
   for (const params of [
-    {symbol:"x".repeat(21)}, {status:"all-users"}, {direction:"SIDEWAYS"},
+    {review:"invalid"}, {review:["reviewed","unreviewed"]}, {symbol:"x".repeat(21)}, {status:"all-users"}, {direction:"SIDEWAYS"},
     {from:"2026-02-29"}, {to:"2026-04-31"}, {from:"0000-01-01"},
     {from:"2026-02-02",to:"2026-02-01"}, {symbol:["A","B"]},
     {status:["open","closed"]}, {page:["1","2"]},

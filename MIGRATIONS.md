@@ -129,3 +129,33 @@ form has no submission key and will be rejected. Older app code remains compatib
 with the additive schema but does not provide retry protection. Do not drop columns
 or alter migration history during rollback. The migration sequence is not atomic;
 inspect schema/history if applying it is interrupted. No live migration was run here.
+
+## CP21 revision checks
+
+`0006_trade_revision` adds `trades.revision integer NOT NULL DEFAULT 0` in one
+ALTER TABLE. All existing rows start at zero; financial data, reviews and submission
+keys remain intact. Stop old application instances before applying and starting
+CP21. Previously open edit/review forms lack the new revision field and must be
+reloaded; never silently treat a missing revision as the current one.
+
+Use the existing backup/disposable-copy rehearsal procedure. With `.env.local`
+pointing to the intended database and no stale shell override:
+
+```fish
+set -e DATABASE_URL
+npm run db:migrate
+npm run db:verify
+```
+
+Expect seven verified migrations and zero pending, followed by successful schema
+checks. No new environment variables or dependencies. Old code can read the added
+column but does not enforce/increment revisions when writing; do not run mixed
+old/new writers or claim conflict protection during a code rollback. Direct SQL
+maintenance must also coordinate writes and revisions. No live migration was run
+as part of implementation.
+
+Local acceptance: open one trade's edit page in two tabs. Save a change in tab A,
+then submit a different change from tab B. B must show a conflict and retain its
+draft; the stored value must still be A's. Copy B's desired changes, use Load latest
+saved version, then reapply and save. Repeat with two review forms, and with a trade
+edit versus a review. A fresh review form should allow successive successful saves.
