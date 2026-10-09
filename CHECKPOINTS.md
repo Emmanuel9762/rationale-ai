@@ -502,3 +502,33 @@ measured sample with Average P&L, and compare winning/losing trade amounts with
 their separate averages. An open-only group should display dashes; a break-even
 group should display 0.00 for Average P&L. Horizontal table scrolling accommodates
 the additional columns on narrow screens. See RELEASE.md to reconcile `main`.
+
+## CP27 — inspect the trades behind a performance group
+
+Setup and symbol labels on `/performance` now link to the corresponding journal
+with the selected UTC entry dates. Missing-label groups have their own explicit
+filter, distinct from a literal setup named "Not specified". The journal adds an
+exact, case-sensitive setup field and a missing-label selector. These filters
+combine with existing history filters and persist in pagination and CSV exports.
+Contradictory exact/missing labels, repeated parameters and oversized setup labels
+show validation errors; invalid CSV requests return 400 rather than broadening.
+
+`tradeGroup` shares the SQL normalization between aggregation and repository reads:
+ordinary surrounding spaces are removed, symbols ignore case, and setups retain
+case. Drill-down includes the group's total sample, including open trades and
+closed trades without P&L, so it can explain every count in the performance row.
+Labels are URL-encoded and bound as SQL parameters. No migration, dependency or
+environment changes; no live database writes.
+
+Verified locally: 48 tests, lint, typecheck, production build, signed-out access
+and full-app HTTP checks. Database tests compare every setup/symbol group's total
+against its exported and paginated journal, including >25 matches, missing values,
+literal "Not specified", mixed case/spaces, tabs, special characters, owner scope
+and date boundaries. HTTP checks cover links, form values, scoped results, export
+links and invalid requests. The CI browser gate follows a dated setup link, checks
+the form/export range and clears filters; local Chromium remains unavailable.
+
+Acceptance: choose dates on Performance, select a setup or symbol, and compare
+the journal with its Total trades count. Export the selection or narrow it to
+closed trades. Use Clear filters to restore the complete journal. CP27 builds on
+CP26 (PR #13); fetch and switch to `codex/cp27-performance-drilldown` to try it.
