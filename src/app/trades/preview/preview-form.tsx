@@ -5,6 +5,7 @@ import { useRef, useState, useTransition, type FormEvent } from "react";
 import { CSV_MAX_BYTES, CSV_MAX_ROWS, CSV_REQUIRED_COLUMNS, CSV_OPTIONAL_COLUMNS, previewTradeCsv, type CsvPreview } from "@/lib/trade-csv-preview";
 import { importTradeCsv } from "./actions";
 import type { ImportState } from "@/lib/trade-import";
+import { journalHref } from "@/lib/journal-filters";
 import { PLAN_ADHERENCE_LABELS } from "@/lib/plan-adherence";
 
 export default function CsvPreviewForm() {
@@ -74,7 +75,7 @@ export default function CsvPreviewForm() {
         <button disabled={isImporting} className="rounded bg-zinc-100 px-4 py-2 text-zinc-950 disabled:opacity-50">{isImporting ? "Importing…" : "Confirm import"}</button>
       </form>}
       {importState.error && <p role="alert" className="rounded-xl border border-red-900 p-4 text-red-300">{importState.error}</p>}
-      {importState.receipt && <div role="status" className="rounded-xl border border-zinc-700 p-5"><p>Batch confirmed: {importState.receipt.count} {importState.receipt.count === 1 ? "trade" : "trades"}. Replaying this batch will not add it again.</p><p className="mt-2 break-all text-sm text-zinc-400">Receipt: {importState.receipt.id}</p><Link href="/trades" className="mt-3 inline-block underline">View trade history</Link></div>}
+      {importState.receipt && <div role="status" className="rounded-xl border border-zinc-700 p-5"><p>Batch confirmed: {importState.receipt.count} {importState.receipt.count === 1 ? "trade" : "trades"}. Replaying this batch will not add it again.</p><p className="mt-2 break-all text-sm text-zinc-400">Receipt: {importState.receipt.id}</p><Link href="/trades" className="mt-3 inline-block underline">View trade history</Link><Link href={journalHref({import:importState.receipt.id})} className="ml-5 underline">View batch trades</Link><Link href="/trades/imports" className="ml-5 underline">Import history</Link></div>}
       {result.errors.length > 0 && <div role="alert" className="rounded-xl border border-red-900 p-4"><h2 className="font-semibold">Records to fix</h2><ul className="mt-2 list-inside list-disc">{result.errors.map(item => <li key={item.record}>Record {item.record}: {item.message}</li>)}</ul></div>}
       {result.rows.length > 0 && <div className="overflow-x-auto rounded-xl border border-zinc-800"><table className="w-full text-left text-sm">
         <caption className="p-4 text-left">Valid records — expand Details for prices, notes and reflections.</caption>

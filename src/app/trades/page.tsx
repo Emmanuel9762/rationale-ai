@@ -16,10 +16,11 @@ export default async function TradesPage({ searchParams }: { searchParams: Promi
   const field = "mt-1 block w-full rounded border border-zinc-700 bg-zinc-900 p-2";
   return <main className="min-h-screen bg-zinc-950 px-6 py-10 text-zinc-100">
     <div className="mx-auto max-w-5xl space-y-6">
-      <nav className="flex flex-wrap gap-5 text-sm"><Link href="/account">Account</Link><Link href="/">Dashboard</Link><Link href="/performance">Performance</Link><Link href="/trades/new">Log a trade</Link><Link href="/trades/preview">Preview CSV</Link></nav>
+      <nav className="flex flex-wrap gap-5 text-sm"><Link href="/account">Account</Link><Link href="/">Dashboard</Link><Link href="/performance">Performance</Link><Link href="/trades/new">Log a trade</Link><Link href="/trades/preview">Preview CSV</Link><Link href="/trades/imports">Import history</Link></nav>
       <header><h1 className="text-2xl font-semibold">Trade history</h1><p className="mt-2 text-zinc-400">Your saved entries and the reasoning behind them.</p></header>
       <p className="text-sm text-zinc-400"><Link className="underline" href={journalHref({status:"closed",review:"unreviewed"})}>Needs review</Link>: closed trades without a saved review. Reviewed means a reflection has been saved; later trade edits do not clear it.</p>
       <form action="/trades" method="get" key={journalHref(filters)} className="grid gap-4 rounded-xl border border-zinc-800 p-4 sm:grid-cols-2 lg:grid-cols-5" aria-label="Journal filters">
+        {filters.import && <div className="sm:col-span-2 lg:col-span-5"><label>Import batch<input className={field} name="import" value={filters.import} readOnly /></label><p className="text-sm text-zinc-400">Only linked trades from this batch are shown. Older batches may have no links. <Link href="/trades/imports" className="underline">Import history</Link> shows original counts.</p></div>}
         <label>Symbol (exact)<input className={field} name="symbol" defaultValue={filters.symbol ?? ""} maxLength={20} placeholder="e.g. EURUSD" /></label>
         <label>Setup (exact, case-sensitive)<input className={field} name="setup" defaultValue={filters.setup ?? ""} maxLength={100} placeholder="e.g. Breakout" /></label>
         <label>Missing label<select className={field} name="missing" defaultValue={filters.missing ?? ""}><option value="">No missing-label filter</option><option value="setup">Setup not specified</option><option value="symbol">Symbol not specified</option></select></label>

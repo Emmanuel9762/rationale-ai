@@ -279,6 +279,22 @@ try {
   const imported=(await database.query("select account_id,reviewed_at from trades where symbol='BATCH_HTTP'")).rows[0];assert.notEqual(imported.account_id,aTrade.account_id);assert.ok(imported.reviewed_at);
   assert.match(await(await c.request('/trades?symbol=BATCH_HTTP')).text(),/BATCH_HTTP<\/a>/);
   assert.match(await(await c.request('/performance')).text(),/Followed my plan/);
+  const receiptId=(await database.query('select id from trade_imports where account_id=$1',[imported.account_id])).rows[0].id;
+  const importHistoryHtml=await(await c.request('/trades/imports')).text();
+  assert.match(importHistoryHtml,/Import history/);assert.ok(importHistoryHtml.includes(`/trades?import=${receiptId}`));
+  const batchHtml=await(await c.request('/trades?import='+receiptId)).text();
+  assert.match(batchHtml,/BATCH_HTTP<\/a>/);const batchInput=batchHtml.match(/<input[^>]*name="import"[^>]*>/)[0];assert.match(batchInput,/readonly=""/i);assert.ok(batchInput.includes(`value="${receiptId}"`));
+  assert.ok(batchHtml.includes('/trades/export?import='+receiptId));
+  const batchCsv=await(await c.request('/trades/export?import='+receiptId)).text();assert.equal((batchCsv.match(/BATCH_HTTP/g)||[]).length,1);assert.ok(!batchCsv.includes('ONLY_A'));
+  for(const query of ['import=invalid',`import=${receiptId}&import=${receiptId}`]){
+    assert.match(await(await c.request('/trades?'+query)).text(),/Check your filters/);
+    assert.equal((await c.request('/trades/export?'+query)).status,400);
+  }
+  const legacyId=(await database.query("insert into trade_imports(user_id,account_id,payload_hash,row_count) select user_id,id,'fixture-legacy',3 from trading_accounts where id=$1 returning id",[imported.account_id])).rows[0].id;
+  const legacyHtml=await(await c.request('/trades/imports')).text();assert.ok(legacyHtml.includes(legacyId));assert.match(legacyHtml,/Trade links unavailable/);
+  assert.match(await(await c.request('/trades?import='+legacyId)).text(),/No trades match these filters/);
+  assert.match(await(await c.request('/trades/imports?page=99')).text(),/Return to the first page/);
+  console.log('Import history HTTP: persisted links, batch filters/CSV, legacy counts and invalid IDs passed.');
   console.log('CSV import HTTP: server validation, signed-out denial, forged ownership ignored and lost-response/concurrent retries passed.');
   if(process.argv.includes('--browser')) {
     const {chromium}=await import('playwright');const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE||undefined});
@@ -409,7 +425,21 @@ try {
       await pages[0].getByRole('button',{name:'Confirm import',exact:true}).click();
       await pages[0].getByText('Batch confirmed: 1 trade. Replaying this batch will not add it again.',{exact:true}).waitFor();
       assert.equal((await database.query("select count(*)::int n from trades where symbol='BATCH_BROWSER'")).rows[0].n,1);
-      await pages[0].getByRole('link',{name:'View trade history',exact:true}).click();
+      const browserReceipt=(await database.query("select r.import_id from trade_import_rows r join trades t on t.id=r.trade_id where t.symbol='BATCH_BROWSER'")).rows[0].import_id;
+      await pages[0].getByRole('link',{name:'Import history',exact:true}).last().click();
+      await pages[0].getByRole('heading',{name:'Import history',exact:true}).waitFor();
+      await pages[0].getByRole('link',{name:`View trades for import ${browserReceipt}`,exact:true}).click();
+      await pages[0].getByRole('heading',{name:'Trade history',exact:true}).waitFor();
+      assert.equal(await pages[0].getByLabel('Import batch',{exact:true}).inputValue(),browserReceipt);
+      await pages[0].getByLabel('Symbol (exact)',{exact:true}).fill('BATCH_BROWSER');
+      await pages[0].getByRole('button',{name:'Apply filters',exact:true}).click();
+      await pages[0].waitForURL(url=>url.searchParams.get('symbol')==='BATCH_BROWSER'&&url.searchParams.get('import')===browserReceipt);
+      assert.ok((await pages[0].getByRole('link',{name:'Export matching trades (CSV)',exact:true}).getAttribute('href')).includes('import='+browserReceipt));
+      await pages[1].goto(base.replace('127.0.0.1','localhost')+'/trades/imports');
+      await pages[1].getByText('No imports yet.',{exact:false}).waitFor();
+      await pages[1].goto(base.replace('127.0.0.1','localhost')+'/trades?import='+browserReceipt);
+      await pages[1].getByText('No trades match these filters.',{exact:false}).waitFor();
+
       await pages[0].getByRole('link',{name:'BATCH_BROWSER',exact:true}).waitFor();
       console.log('CSV import browser: confirm, save, reload/replay and journal visibility passed.');
       await pages[1].goto(base.replace('127.0.0.1','localhost')+'/performance');
