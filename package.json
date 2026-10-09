@@ -13,7 +13,12 @@
     "db:generate": "drizzle-kit generate",
     "test:access": "node scripts/check-production-access.mjs",
     "auth:link-legacy": "node --import tsx scripts/link-legacy-user.ts",
-    "test:auth": "node scripts/check-auth-flow.mjs"
+    "test:auth": "node scripts/check-auth-flow.mjs",
+    "test:isolation": "node scripts/check-isolation.mjs",
+    "test:browser": "node scripts/check-isolation.mjs --browser",
+    "test:neon-concurrency": "node --import tsx scripts/check-neon-concurrency.ts",
+    "db:verify": "node --import tsx scripts/verify-database.ts",
+    "test:performance": "node scripts/check-isolation.mjs --performance"
   },
   "dependencies": {
     "@neondatabase/auth": "0.5.0-beta",
