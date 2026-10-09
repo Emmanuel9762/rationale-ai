@@ -53,7 +53,7 @@ export async function importOwnedCsv<Q extends PgQueryResultHKT>(
     with claimed as (
       insert into trade_imports (user_id, account_id, payload_hash, row_count)
       values (${userId}::uuid, ${accountId}::uuid, ${hash}, ${rows.length})
-      on conflict (user_id, payload_hash) do nothing returning account_id
+      on conflict (user_id, payload_hash) do nothing returning id, account_id
     ), inserted as (
       insert into trades (account_id, symbol, direction, setup, rationale, notes,
         entry_price, exit_price, quantity, pnl, entry_time, exit_time,
@@ -68,7 +68,11 @@ export async function importOwnedCsv<Q extends PgQueryResultHKT>(
         "entryPrice" numeric, "exitPrice" numeric, quantity numeric, pnl numeric,
         "entryTime" text, "exitTime" text, "planAdherence" text, "reviewWentWell" text, "reviewImprove" text)
       returning id
-    ) select count(*) from inserted
+    ), linked as (
+      insert into trade_import_rows (trade_id, import_id)
+      select inserted.id, claimed.id from inserted cross join claimed
+      returning trade_id
+    ) select count(*) from linked
   `);
   // A separate read sees the winning receipt after an ON CONFLICT wait even
   // when the winner wasn't visible in the INSERT statement's snapshot.

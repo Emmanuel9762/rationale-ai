@@ -8,6 +8,7 @@ import {
   boolean,
   integer,
   uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -65,3 +66,8 @@ export const tradeImports = pgTable("trade_imports", {
   rowCount: integer("row_count").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, table => [uniqueIndex("trade_imports_owner_payload_unique").on(table.userId, table.payloadHash)]);
+
+export const tradeImportRows = pgTable("trade_import_rows", {
+  tradeId: uuid("trade_id").primaryKey().references(() => trades.id),
+  importId: uuid("import_id").notNull().references(() => tradeImports.id),
+}, table => [index("trade_import_rows_import_idx").on(table.importId)]);

@@ -13,10 +13,16 @@ batch in the same order returns its original receipt on retry or reload; differe
 or overlapping files are not deduplicated. Imported reviews are timestamped at
 import time. No currency conversion or balance adjustment is performed.
 
-CP30 requires migration `0007_trade_imports`. Follow [MIGRATIONS.md](MIGRATIONS.md)
+CP31 requires migrations through `0008_import_trade_links`. Follow [MIGRATIONS.md](MIGRATIONS.md)
 before starting the updated app. The sample's final six invalid records must be
 removed before importing; its two repeated records can be kept intentionally.
 Use a test account for mock data. Preview alone never changes the journal.
+
+**Import history** lists your saved receipts with original counts and links to
+newly imported trades. Batch filters persist when narrowing the journal, paging
+or exporting CSV. Linked trades show current values after edits. Older CP30
+receipts may have no links; they are displayed without guessing trade membership.
+
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 

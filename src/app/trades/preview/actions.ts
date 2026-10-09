@@ -13,6 +13,7 @@ export async function importTradeCsv(data: FormData): Promise<ImportState> {
     revalidatePath("/");
     revalidatePath("/trades");
     revalidatePath("/performance");
+    revalidatePath("/trades/imports");
     return { receipt };
   } catch (error) {
     return { error: error instanceof CsvPreviewError ? error.message : "Could not confirm the import. Retry the same file unchanged to recover its receipt without adding the batch again." };

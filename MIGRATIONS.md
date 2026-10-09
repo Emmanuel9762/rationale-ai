@@ -190,3 +190,32 @@ Identical validated rows in the same order map to one owner-scoped receipt.
 Replays return the original count even if trades were subsequently edited. This
 is batch retry protection, not row-level deduplication across different files.
 Different content/order is a different batch and may overlap existing trades.
+
+## CP31 import-to-trade links
+
+`0008_import_trade_links` adds an empty `trade_import_rows` table. Each trade can
+belong to one batch; foreign keys preserve receipt/trade references, and an import
+index supports batch lookups. CP31 writes these links in the same statement as the
+receipt and trades. A failure at any stage rolls back all three.
+
+No existing rows are guessed or backfilled. CP30 receipts remain replay-safe, but
+they cannot identify individual trades because that association was not recorded.
+History shows their original counts and marks unavailable trade links. Replaying
+an older receipt must not create replacement trades or manufacture associations.
+
+Stop the app and rehearse on a disposable copy, as above. Preserve any local Git
+changes before switching branches, and verify the switch succeeded. A failed
+checkout followed by successful migration commands only checks the old code.
+With the intended database/Auth pairing and CP31 checked out:
+
+```fish
+set -e DATABASE_URL
+npm run db:migrate
+npm run db:verify
+```
+
+Expect nine verified migrations and zero pending. Upgrading from CP29 applies both
+0007 and 0008; upgrading from CP30 applies 0008 only. No live migration was run here.
+Keep the additive table if reverting code. CP30 writers would omit new links, so
+stop older app instances before starting CP31. Foreign keys prevent deleting a
+linked receipt or trade without an explicit future deletion policy.
