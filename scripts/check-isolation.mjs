@@ -317,7 +317,8 @@ try {
       await pages[0].getByRole('button',{name:'Preview CSV',exact:true}).click();
       await pages[0].getByRole('alert').filter({hasText:'Missing required columns'}).waitFor();
       await pages[0].getByRole('button',{name:'Clear preview',exact:true}).click();
-      assert.equal(await pages[0].getByRole('alert').count(),0);
+      await pages[0].getByRole('main').getByRole('alert').waitFor({state:'detached'});
+      assert.equal(await pages[0].getByLabel('Trade CSV',{exact:true}).inputValue(),'');
       assert.deepEqual(csvPosts,[],'CSV stays in the browser');
       pages[0].off('request',observeCsv);
       console.log('CSV browser: sample counts, row errors, repeats, multiline details, reset and no upload/database writes passed.');
