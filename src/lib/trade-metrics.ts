@@ -6,26 +6,41 @@ import type { JournalFilters } from "./journal-filters";
 function metricColumns() {
   const closed = sql`${trades.exitTime} is not null and ${trades.exitPrice} is not null`;
   const measured = sql`${closed} and ${trades.pnl} is not null`;
+  const winning = sql`${measured} and ${trades.pnl} > 0`;
+  const losing = sql`${measured} and ${trades.pnl} < 0`;
+  const grossProfit = sql`coalesce(sum(${trades.pnl}) filter (where ${winning}), 0)`;
+  const grossLoss = sql`coalesce(-sum(${trades.pnl}) filter (where ${losing}), 0)`;
   return {
     total: sql<number>`count(*)::int`,
     closed: sql<number>`count(*) filter (where ${closed})::int`,
     measured: sql<number>`count(*) filter (where ${measured})::int`,
-    wins: sql<number>`count(*) filter (where ${measured} and ${trades.pnl} > 0)::int`,
+    wins: sql<number>`count(*) filter (where ${winning})::int`,
     pnl: sql<string>`coalesce(sum(${trades.pnl}) filter (where ${measured}), 0)::text`,
-    grossProfit: sql<string>`coalesce(sum(${trades.pnl}) filter (where ${measured} and ${trades.pnl} > 0), 0)::text`,
-    grossLoss: sql<string>`coalesce(-sum(${trades.pnl}) filter (where ${measured} and ${trades.pnl} < 0), 0)::text`,
+    grossProfit: sql<string>`${grossProfit}::text`,
+    grossLoss: sql<string>`${grossLoss}::text`,
+    // Round numeric values in PostgreSQL, then retain strings through rendering.
+    // NULL distinguishes no applicable sample from a measured zero.
+    averagePnl: sql<string | null>`round(avg(${trades.pnl}) filter (where ${measured}), 2)::text`,
+    averageWin: sql<string | null>`round(avg(${trades.pnl}) filter (where ${winning}), 2)::text`,
+    averageLoss: sql<string | null>`round(avg(-${trades.pnl}) filter (where ${losing}), 2)::text`,
+    profitFactorValue: sql<string | null>`round(${grossProfit} / nullif(${grossLoss}, 0), 2)::text`,
   };
 }
 
-type MetricRow = { total: number; closed: number; measured: number; wins: number; pnl: string; grossProfit: string; grossLoss: string };
+type MetricRow = {
+  total: number; closed: number; measured: number; wins: number;
+  pnl: string; grossProfit: string; grossLoss: string;
+  averagePnl: string | null; averageWin: string | null; averageLoss: string | null;
+  profitFactorValue: string | null;
+};
 function summarize(result: MetricRow) {
+  const { profitFactorValue, ...metrics } = result;
   return {
-    ...result,
+    ...metrics,
     open: result.total - result.closed,
     missingPnl: result.closed - result.measured,
     winRate: result.measured ? `${(result.wins / result.measured * 100).toFixed(1)}%` : "—",
-    profitFactor: Number(result.grossLoss) > 0 ? (Number(result.grossProfit) / Number(result.grossLoss)).toFixed(2)
-      : Number(result.grossProfit) > 0 ? "∞" : "—",
+    profitFactor: profitFactorValue ?? (result.wins > 0 ? "∞" : "—"),
   };
 }
 
