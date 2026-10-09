@@ -187,6 +187,9 @@ try {
   await database.query("update trades set setup='OWNER_SETUP',exit_price=2,exit_time='2026-01-01 13:00:00',pnl=12.34 where id=$1",[aTrade.id]);
   const performanceAfter = await(await a.request('/performance')).text();
   assert.match(performanceAfter,/OWNER_SETUP/);assert.match(performanceAfter,/12\.34/);assert.match(performanceAfter,/100\.0%/);
+  const outcomeRow=performanceAfter.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/g).find(row=>row.includes('OWNER_SETUP'));
+  const outcomeCells=[...outcomeRow.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/g)].map(match=>decode(match[1]));
+  assert.deepEqual(outcomeCells.slice(-4),['12.34','12.34','—','∞']);
   const otherPerformance = await(await b.request('/performance')).text();assert.ok(otherPerformance.includes('ONLY_B'));assert.ok(!otherPerformance.includes('OWNER_SETUP'));assert.ok(!otherPerformance.includes('ONLY_A'));
   const datedPerformance=await(await a.request('/performance?from=2026-01-01&to=2026-01-01')).text();
   assert.match(datedPerformance,/OWNER_SETUP/);assert.match(datedPerformance,/12\.34/);assert.ok(!datedPerformance.includes('ONLY_B'));
@@ -274,6 +277,10 @@ try {
       await pages[0].goto(base.replace('127.0.0.1','localhost')+'/performance');
       await pages[0].getByRole('heading',{name:'Performance breakdowns',exact:true}).waitFor();
       assert.ok((await pages[0].getByRole('region',{name:'By symbol',exact:true}).textContent()).includes('ONLY_A'));
+      const symbolTable=pages[0].getByRole('region',{name:'By symbol',exact:true});
+      for(const label of ['Average P&L','Average win','Average loss','Profit factor']) await symbolTable.getByRole('columnheader',{name:label,exact:true}).waitFor();
+      const openOutcomeCells=await symbolTable.getByRole('row').filter({hasText:'ONLY_A'}).getByRole('cell').allTextContents();
+      assert.deepEqual(openOutcomeCells.slice(-4),['—','—','—','—']);
       await pages[0].getByLabel('From entry date (UTC)',{exact:true}).fill('2027-01-01');
       await pages[0].getByRole('button',{name:'Apply dates',exact:true}).click();
       await pages[0].getByText('No trades match these entry dates.',{exact:false}).waitFor();
