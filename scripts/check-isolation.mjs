@@ -188,8 +188,37 @@ try {
   const performanceAfter = await(await a.request('/performance')).text();
   assert.match(performanceAfter,/OWNER_SETUP/);assert.match(performanceAfter,/12\.34/);assert.match(performanceAfter,/100\.0%/);
   const otherPerformance = await(await b.request('/performance')).text();assert.ok(otherPerformance.includes('ONLY_B'));assert.ok(!otherPerformance.includes('OWNER_SETUP'));assert.ok(!otherPerformance.includes('ONLY_A'));
+  const datedPerformance=await(await a.request('/performance?from=2026-01-01&to=2026-01-01')).text();
+  assert.match(datedPerformance,/OWNER_SETUP/);assert.match(datedPerformance,/12\.34/);assert.ok(!datedPerformance.includes('ONLY_B'));
+  assert.match(datedPerformance,/href="\/trades\?from=2026-01-01&amp;to=2026-01-01"/);
+  assert.match(await(await a.request('/performance?from=2027-01-01')).text(),/No trades match these entry dates/);
+  for(const query of ['from=2026-02-30','from=2026-02-01&to=2026-01-01','from=2026-01-01&from=2026-01-02']) {
+    const html=await(await a.request('/performance?'+query)).text();assert.match(html,/Check your dates/);assert.ok(!html.includes('<table'));
+  }
+  console.log('Performance periods HTTP: matching journal link, empty range, invalid/repeated dates and owner scope passed.');
   console.log('Performance HTTP: setup/symbol groups, unmeasured display, recorded results and owner isolation passed.');
+  const queueRow=(await database.query("insert into trades(account_id,symbol,direction,entry_price,quantity,entry_time,exit_price,exit_time) values ($1,'QUEUE_A','LONG',1,1,'2026-01-01',2,'2026-01-02') returning id",[aTrade.account_id])).rows[0];
+  const queuePath='/trades?status=closed&review=unreviewed';
+  const queueHtml=await(await a.request(queuePath)).text();assert.match(queueHtml,/QUEUE_A/);assert.ok(!queueHtml.includes('ONLY_A</a>'));
+  assert.ok(!(await(await b.request(queuePath)).text()).includes('QUEUE_A'));
+  const queueSaved=await a.submit('/trades/'+queueRow.id,{planAdherence:'followed',reviewWentWell:'Queue complete'});assert.match(await queueSaved.text(),/Review saved/);
+  assert.match(await(await a.request(queuePath)).text(),/No trades match these filters/);
+  assert.match(await(await a.request('/trades?review=reviewed')).text(),/QUEUE_A/);
+  assert.match(await(await a.request('/trades?review=invalid')).text(),/Check your filters/);
+  console.log('Review queue HTTP: closed/unreviewed scope, save removes row, owner isolation and invalid filters passed.');
+  const exportResponse=await a.request('/trades/export?symbol=ONLY_A&page=2');assert.equal(exportResponse.status,200);
+  assert.match(exportResponse.headers.get('content-type'),/text\/csv/);assert.match(exportResponse.headers.get('cache-control'),/no-store/);
+  assert.match(exportResponse.headers.get('content-disposition'),/attachment/);
+  const csv=await exportResponse.text();assert.equal((csv.match(/"ONLY_A"/g)??[]).length,26);assert.ok(!csv.includes('ONLY_B'));assert.ok(!csv.includes('submission_hash'));
+  const otherCsv=await(await b.request('/trades/export')).text();assert.ok(otherCsv.includes('ONLY_B'));assert.ok(!otherCsv.includes('ONLY_A'));
+  assert.equal((await a.request('/trades/export?review=bad')).status,400);
+  assert.equal((await a.request('/trades/export?symbol=ONLY_A&symbol=ONLY_B')).status,400);
+  const emptyCsv=await(await a.request('/trades/export?symbol=MISSING')).text();assert.equal(emptyCsv.trim().split('\r\n').length,1);
+  await database.query("insert into trades(account_id,symbol,direction,entry_price,quantity,entry_time) select $1,'EXPORT_LIMIT','LONG',1,1,'2026-01-01'::timestamp from generate_series(1,2001)",[aTrade.account_id]);
+  assert.equal((await a.request('/trades/export?symbol=EXPORT_LIMIT')).status,422);
+  console.log('Export HTTP: all filtered pages, private attachment headers, owner isolation, invalid/empty/oversized responses passed.');
   await a.submit('/account',{});
+  assert.equal((await a.request('/trades/export')).headers.get('location'),'/sign-in');
   const deniedReview=await a.submit(tradePath,review,reviewHtml);assert.equal(deniedReview.headers.get('location'),'/sign-in');
   assert.equal((await database.query('select review_improve from trades where id=$1',[aTrade.id])).rows[0].review_improve,'Revised reflection');
   const denied=await a.submit(editPath,{...input,notes:'SIGNED OUT'},editHtml);assert.equal(denied.headers.get('location'),'/sign-in');
@@ -213,7 +242,7 @@ try {
       await pages[0].getByRole('button',{name:'Save trade',exact:true}).click();
       await pages[0].getByRole('alert').filter({hasText:'P&L can only be recorded'}).waitFor();
       assert.equal(await pages[0].locator('[name="submissionKey"]').inputValue(),browserSubmissionKey);
-      assert.equal(await pages[0].locator('[name="symbol"]').inputValue(),'ONLY_A');
+      for (const [name,value] of Object.entries(input)) assert.equal(await pages[0].locator(`[name="${name}"]`).inputValue(),value,`validation preserves ${name}`);
       await pages[0].locator('[name="pnl"]').fill('');
       await pages[0].getByRole('button',{name:'Save trade',exact:true}).click();await pages[0].waitForURL(/\/trades\/[a-f0-9-]+$/);
       const path=new URL(pages[0].url()).pathname;await pages[0].reload();assert.ok((await pages[0].textContent('body')).includes('A private rationale'));
@@ -231,20 +260,27 @@ try {
       await editTab.getByRole('button',{name:'Save changes',exact:true}).click();
       await editTab.getByRole('alert').filter({hasText:'changed after you opened'}).waitFor();
       assert.equal(await editTab.getByLabel('Notes',{exact:true}).inputValue(),'STALE_BROWSER_TRADE');
-      await editTab.getByRole('link',{name:'Load latest saved version (discards this draft)',exact:true}).click();
+      await Promise.all([editTab.waitForEvent('domcontentloaded'), editTab.getByRole('link',{name:'Load latest saved version (discards this draft)',exact:true}).click()]);
       await editTab.getByLabel('Notes',{exact:true}).fill('Fresh browser correction');
       await editTab.getByRole('button',{name:'Save changes',exact:true}).click();await editTab.waitForURL('**'+path);
       await pages[0].getByLabel('What went well?').fill('STALE_BROWSER_REVIEW');
       await pages[0].getByRole('button',{name:'Save review',exact:true}).click();
       await pages[0].getByRole('alert').filter({hasText:'changed after you opened'}).waitFor();
       assert.equal(await pages[0].getByLabel('What went well?').inputValue(),'STALE_BROWSER_REVIEW');
-      await pages[0].getByRole('link',{name:'Load latest saved version (discards this draft)',exact:true}).click();
+      await Promise.all([pages[0].waitForEvent('domcontentloaded'), pages[0].getByRole('link',{name:'Load latest saved version (discards this draft)',exact:true}).click()]);
       assert.equal(await pages[0].getByLabel('What went well?').inputValue(),'New browser reflection');
       await editTab.close();
 
       await pages[0].goto(base.replace('127.0.0.1','localhost')+'/performance');
       await pages[0].getByRole('heading',{name:'Performance breakdowns',exact:true}).waitFor();
       assert.ok((await pages[0].getByRole('region',{name:'By symbol',exact:true}).textContent()).includes('ONLY_A'));
+      await pages[0].getByLabel('From entry date (UTC)',{exact:true}).fill('2027-01-01');
+      await pages[0].getByRole('button',{name:'Apply dates',exact:true}).click();
+      await pages[0].getByText('No trades match these entry dates.',{exact:false}).waitFor();
+      assert.equal(new URL(pages[0].url()).searchParams.get('from'),'2027-01-01');
+      await pages[0].getByRole('link',{name:'All time',exact:true}).click();
+      await pages[0].getByRole('region',{name:'By symbol',exact:true}).waitFor();
+      assert.equal(await pages[0].getByLabel('From entry date (UTC)',{exact:true}).inputValue(),'');
       await pages[1].goto(base.replace('127.0.0.1','localhost')+'/performance');
       await pages[1].getByText('No trades yet.',{exact:false}).waitFor();
       await pages[1].goto(base.replace('127.0.0.1','localhost')+path);assert.ok(!(await pages[1].textContent('body')).includes('A private rationale'));
@@ -256,6 +292,11 @@ try {
       await pages[0].getByRole('link',{name:'Clear filters',exact:true}).first().click();
       await pages[0].waitForURL(url=>url.pathname==='/trades'&&!url.search);
       assert.ok((await pages[0].textContent('table')).includes('ONLY_A'));
+      const downloadEvent=pages[0].waitForEvent('download');
+      await pages[0].getByRole('link',{name:'Export matching trades (CSV)',exact:true}).click();
+      const download=await downloadEvent;assert.equal(download.suggestedFilename(),'rationale-trades.csv');
+      const browserCsv=await readFile(await download.path(),'utf8');assert.ok(browserCsv.includes('ONLY_A'));assert.ok(!browserCsv.includes('ONLY_B'));
+
       console.log('Two isolated Chromium contexts: signup, trade creation, refresh and cross-user denial passed.');
     } finally {await browser.close();}
   }

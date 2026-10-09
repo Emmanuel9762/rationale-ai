@@ -63,3 +63,31 @@ test("performance groups preserve ownership, lifecycle exclusions, sample sizes 
     assert.equal(large.measured,101);assert.equal(large.winRate,"100.0%");
   } finally { await client.close(); }
 });
+
+
+test("performance periods use inclusive UTC entry dates before aggregation and retain owner scope", async () => {
+  const client = new PGlite(); const db = drizzle(client);
+  try {
+    await migrate(db, {migrationsFolder:"./drizzle"});
+    const owners = await db.insert(users).values([{email:"period@test.local"},{email:"period-other@test.local"}]).returning();
+    const accounts = await db.insert(tradingAccounts).values(owners.map(owner=>({userId:owner.id,name:"Test",balance:"0"}))).returning();
+    const base = {accountId:accounts[0].id,symbol:"EURUSD",setup:"Range",direction:"LONG",entryPrice:"1",quantity:"1",exitPrice:"2",exitTime:new Date("2026-03-02T00:00:00Z")};
+    await db.insert(trades).values([
+      {...base,entryTime:new Date("2026-02-27T23:59:59.999Z"),pnl:"100"},
+      {...base,entryTime:new Date("2026-02-28T00:00:00Z"),pnl:"0.10"},
+      {...base,entryTime:new Date("2026-02-28T23:59:59.999Z"),pnl:"-0.20"},
+      {...base,entryTime:new Date("2026-03-01T00:00:00Z"),pnl:"200"},
+      {...base,accountId:accounts[1].id,entryTime:new Date("2026-02-28T12:00:00Z"),pnl:"999"},
+      {...base,entryTime:new Date("2026-02-28T12:00:00Z"),exitPrice:null,exitTime:null,pnl:null},
+    ]);
+    for (const by of ["setup","symbol"] as const) {
+      const [row] = await tradeBreakdown(db,owners[0].id,by,{from:"2026-02-28",to:"2026-02-28"});
+      assert.equal(row.total,3);assert.equal(row.measured,2);assert.equal(row.open,1);
+      assert.equal(row.pnl,"-0.10");assert.equal(row.winRate,"50.0%");
+      assert.equal((await tradeBreakdown(db,owners[0].id,by,{from:"2026-03-01"}))[0].total,1);
+      assert.equal((await tradeBreakdown(db,owners[0].id,by,{to:"2026-02-27"}))[0].total,1);
+      assert.deepEqual(await tradeBreakdown(db,owners[0].id,by,{from:"2027-01-01"}),[]);
+      assert.equal((await tradeBreakdown(db,owners[0].id,by))[0].total,5);
+    }
+  } finally {await client.close();}
+});

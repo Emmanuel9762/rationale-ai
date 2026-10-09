@@ -1,6 +1,7 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, gte, lt, sql } from "drizzle-orm";
 import type { db } from "../db";
 import { trades, tradingAccounts } from "../db/schema";
+import type { JournalFilters } from "./journal-filters";
 
 function metricColumns() {
   const closed = sql`${trades.exitTime} is not null and ${trades.exitPrice} is not null`;
@@ -35,7 +36,9 @@ export async function tradeMetrics(database: Pick<typeof db, "select">, userId: 
   return summarize(result);
 }
 
-export async function tradeBreakdown(database: Pick<typeof db, "select">, userId: string, by: "setup" | "symbol") {
+export async function tradeBreakdown(database: Pick<typeof db, "select">, userId: string, by: "setup" | "symbol", period: Pick<JournalFilters, "from" | "to"> = {}) {
+  const until = period.to ? new Date(`${period.to}T00:00:00.000Z`) : undefined;
+  if (until) until.setUTCDate(until.getUTCDate() + 1);
   // Keep missing values as NULL so a literal setup named "No setup" stays distinct.
   // Symbols ignore case; setup labels retain their author's capitalization.
   const group = by === "symbol"
@@ -43,7 +46,11 @@ export async function tradeBreakdown(database: Pick<typeof db, "select">, userId
     : sql<string | null>`nullif(btrim(${trades.setup}), '')`;
   const rows = await database.select({ group, ...metricColumns() }).from(trades)
     .innerJoin(tradingAccounts, eq(trades.accountId, tradingAccounts.id))
-    .where(eq(tradingAccounts.userId, userId))
+    .where(and(
+      eq(tradingAccounts.userId, userId),
+      period.from ? gte(trades.entryTime, new Date(`${period.from}T00:00:00.000Z`)) : undefined,
+      until ? lt(trades.entryTime, until) : undefined,
+    ))
     .groupBy(group).orderBy(asc(group));
   return rows.map(row => ({ group: row.group, ...summarize(row) }));
 }

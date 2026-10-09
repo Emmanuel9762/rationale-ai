@@ -378,3 +378,89 @@ confirmed six migrations with zero pending. Password-reset link loading remains
 unresolved; separate-account isolation acceptance and PR consolidation remain pending.
 Next planned feature checkpoint: CP22 review queue/status filters, after reconciling
 CP21 verification and the outstanding recovery issue.
+
+## CP22 — preserve controlled forms after validation
+
+CP21's remote browser gate failed on correcting an invalid create form and saving
+again; unit, HTTP, auth and build gates passed. Controlled trade/review forms now
+cancel the native reset fired when a React action completes, preserving selector
+and input state until explicit navigation/reload. The browser regression checks
+all entered fields after the server-side validation error, then corrects and saves.
+No schema or dependencies change. Browser confirmation is delegated to CI because
+workspace Chromium downloads return invalid archives. This repair takes priority
+over adding archive/restore; the next increments are review queue and CSV export.
+
+## CP23 — review queue and history status
+
+History now filters Reviewed/Unreviewed and displays review links per row. Dashboard
+and history link to Needs review: closed trades without a saved review. Both exit
+fields are required for closed status. Review predicates apply with ownership and
+all existing filters before pagination, with URL selections preserved. Saving a
+review revalidates history and removes the trade from the queue. Reviewed means a
+reflection was saved, not that it was written after the most recent trade edit.
+
+Verified: 42 tests, lint, production build/typecheck, and HTTP queue/save/ownership
+checks. Tests cover >25 matches, incomplete/open trades, another owner, saved-review
+removal, invalid filters and combined selections. No migration or dependencies.
+CP22 browser validation recovery passed remotely; its later conflict check exposed
+a textarea label lookup issue. Follow-up markup separates labels from textarea
+content so labels remain stable after a controlled value changes.
+
+## CP24 — private, filtered CSV export
+
+History exports all matching trades across pages, in the same stable order and
+with the same owner/filter predicates as the journal. Export is capped at 2,000
+rows; larger selections return an explicit error without silently truncating.
+CSV preserves recorded decimal strings and UTC timestamps, handles quotes and
+multiline text, and prefixes formula-like text with an apostrophe. Numeric fields
+remain numeric text, including negative P&L. Empty matches produce a header.
+
+The authenticated download is private/no-store and excludes auth information,
+submission keys/hashes and concurrency metadata. Notes and review text are included;
+this is a journal export, not a full database backup. Invalid filters fail closed.
+No dependencies, environment changes or migrations; CP21's revision migration
+remains required (seven migrations total). No live database changes were made.
+
+Verified: 44 unit/database tests, lint, production build/typecheck, seven signed-out
+route checks, and full-app HTTP tests including all-page export, cross-owner denial,
+invalid/duplicate filters, empty results, size limit and download headers. Browser
+download and conflict checks are included in CI; see PR checks for their final result.
+
+Acceptance: correct an invalid create form without losing its values; open Needs
+review, save a closed trade's reflection and confirm it leaves the queue; export
+a filtered journal and check matching trades from all pages and notes/reviews.
+The previously reported real-provider password-reset link issue remains unresolved.
+
+### Browser recovery follow-up
+
+The remote browser checks exposed a genuine review-recovery issue: the reload
+link included #review, causing same-document scrolling and retaining a stale
+draft. Its target now omits the fragment so recovery reloads server data. Both
+edit/review tests explicitly wait for DOMContentLoaded before inspecting the
+recovered form; this prevents a premature assertion from hiding navigation bugs.
+
+## CP25 — performance by entry-date period
+
+Performance now accepts optional From/Through entry dates in UTC for both setup
+and symbol breakdowns. SQL filters run before aggregation and remain combined
+with account ownership. The end day is inclusive via an exclusive next-midnight
+boundary; trades closed later still belong to their entry-date period. Blank
+bounds are unrestricted. Dashboard totals remain all-time. Matching history links
+carry the same dates, and All time clears the range and its form values.
+
+Existing journal date validation rejects invalid, reversed and repeated dates;
+invalid requests render errors without querying/rendering breakdown totals. Empty
+periods have a distinct message. URLs preserve the range for refresh/bookmark use.
+No schema, dependencies or environment changes. No live database writes performed.
+
+Verified locally: 45 tests, lint, clean production build/typecheck, and full-app
+HTTP checks for selected/empty/invalid ranges, matching history links and owner
+scope. Boundary tests cover start/end midnight, one-sided ranges, later exits,
+open trades, exact decimal totals and both grouping dimensions. Browser checks
+apply an empty range then restore All time and verify the date input clears;
+these run in GitHub CI because workspace Chromium installation is unavailable.
+
+Acceptance: choose a period containing known entries, inspect both tables and
+View matching trades; choose an empty period; reverse the dates; restore All time.
+CP22–24 CI passed on 49b3827. Their live local acceptance, real-provider reset-link
+recovery, and PR consolidation remain pending unless separately confirmed.
