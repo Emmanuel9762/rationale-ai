@@ -19,7 +19,7 @@ test("migrations build an empty database, persist the complete trade schema and 
     await migrate(db, { migrationsFolder: "./drizzle" });
     assert.equal((await db.select().from(trades)).length, 1);
     const history = await client.query("SELECT * FROM drizzle.__drizzle_migrations");
-    assert.equal(history.rows.length, 2);
+    assert.equal(history.rows.length, 7);
     await assert.rejects(db.insert(trades).values({ accountId: "00000000-0000-4000-8000-000000000000", symbol: "EURUSD", direction: "LONG", entryPrice: "1", quantity: "1", entryTime: new Date() }));
   } finally {
     await client.close();

@@ -1,20 +1,21 @@
 "use server";
+import { requireCurrentUser } from "@/lib/auth/current-user";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { trades } from "@/db/schema";
 import { parseTradeInput, TradeInputError, type TradeFormState } from "@/lib/trade-input";
-import { developmentAccount } from "@/lib/trade-writes";
+import { createOwnedTrade, parseSubmissionKey } from "@/lib/trade-create";
 
 export async function createTrade(_previous: TradeFormState, formData: FormData): Promise<TradeFormState> {
+  const user = await requireCurrentUser();
   let id: string;
+  let submissionKey: string | undefined;
   try {
+    submissionKey = parseSubmissionKey(formData);
     const input = parseTradeInput(formData);
-    const accountId = await developmentAccount(db);
-    const [trade] = await db.insert(trades).values({ ...input, accountId }).returning({ id: trades.id });
-    id = trade.id;
+    id = await createOwnedTrade(db, user.id, submissionKey, input);
   } catch (error) {
-    return { error: error instanceof TradeInputError ? error.message : "Could not confirm that the trade was saved. Check history before retrying." };
+    return { submissionKey, error: error instanceof TradeInputError ? error.message : "Could not confirm the save. Retry from this form with the same details. If you reload or open a new form, check trade history first." };
   }
   revalidatePath("/");
   revalidatePath("/trades");
