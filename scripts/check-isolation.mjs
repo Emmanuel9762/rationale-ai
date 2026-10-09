@@ -18,6 +18,7 @@ const database = new PGlite();
 await migrate(drizzle(database), { migrationsFolder: './drizzle' });
 let child;
 let provider;
+let loseTradeInsertReply = false;
 try {
   const cert = join(dir, 'cert.pem'), key = join(dir, 'key.pem');
   execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-keyout', key, '-out', cert, '-subj', '/CN=localhost', '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1'], { stdio: 'ignore' });
@@ -32,6 +33,11 @@ try {
       try {
         // Preserve duplicate aggregate column names, as Neon array rows do.
         const result = await database.query(body.query, body.params, { rowMode: "array" });
+        // Simulate a committed insert whose result cannot reach the application.
+        if (loseTradeInsertReply && /^insert into "trades"/i.test(body.query.trim())) {
+          loseTradeInsertReply = false;
+          return reply({message:'Fixture lost insert response'},503);
+        }
         const text = (value, field) => value === null ? null : value instanceof Date ? (field.dataTypeID === 1114 ? value.toISOString().slice(0,-1).replace('T',' ') : value.toISOString()) : typeof value === 'boolean' ? (value ? 't':'f') : typeof value === 'object' ? JSON.stringify(value) : String(value);
         return reply({ fields: result.fields, rows: result.rows.map(row=>result.fields.map((f, i)=>text(row[i], f))), rowCount: result.affectedRows ?? result.rows.length, command: 'SELECT' });
       } catch (e) { return reply({message:e.message,code:e.code},400); }
@@ -81,8 +87,29 @@ try {
     const r=await client.submit('/sign-up',{name:email,email,password:'fixture-password'});assert.equal(r.status,303);
   }
   const input={symbol:'ONLY_A',direction:'LONG',entryPrice:'1.5',quantity:'2',entryTime:'2026-01-01T12:00',rationale:'A private rationale'};
-  const created=await a.submit('/trades/new',input);assert.equal(created.status,303);
+  const newTradeHtml=await(await a.request('/trades/new')).text();
+  const keyFrom=html=>html.match(/name="submissionKey"[^>]*value="([^"]+)"/)[1];
+  const submissionKey=keyFrom(newTradeHtml);
+  const invalidSubmission=await a.submit('/trades/new',{...input,pnl:'1'},newTradeHtml);
+  const invalidSubmissionHtml=await invalidSubmission.text();assert.match(invalidSubmissionHtml,/P&amp;L can only be recorded/);
+  assert.equal(keyFrom(invalidSubmissionHtml),submissionKey,'validation errors preserve the submission key');
+  assert.equal((await database.query('select count(*)::int n from trades')).rows[0].n,0);
+  loseTradeInsertReply=true;
+  const uncertain=await a.submit('/trades/new',input,invalidSubmissionHtml);
+  const uncertainHtml=await uncertain.text();assert.match(uncertainHtml,/Could not confirm the save/);
+  assert.equal(loseTradeInsertReply,false);assert.equal(keyFrom(uncertainHtml),submissionKey);
+  assert.equal((await database.query('select count(*)::int n from trades')).rows[0].n,1);
+  const created=await a.submit('/trades/new',input,uncertainHtml);assert.equal(created.status,303);
   const tradePath=created.headers.get('location');assert.match(tradePath,/^\/trades\/[a-f0-9-]+$/);
+  const replays=await Promise.all(Array.from({length:3},()=>a.submit('/trades/new',input,newTradeHtml)));
+  for(const replay of replays){assert.equal(replay.status,303);assert.equal(replay.headers.get('location'),tradePath);}
+  const changedReplay=await a.submit('/trades/new',{...input,symbol:'CHANGED'},newTradeHtml);
+  assert.match(await changedReplay.text(),/different details/);
+  const badKey=await a.submit('/trades/new',{...input,submissionKey:'bad'},newTradeHtml);
+  assert.match(await badKey.text(),/valid submission key/);
+  assert.equal((await database.query('select count(*)::int n from trades')).rows[0].n,1);
+  assert.notEqual(keyFrom(await(await a.request('/trades/new')).text()),submissionKey,'fresh forms get new keys');
+  console.log('Submission HTTP: validation key retention, lost insert response/retry, concurrent replay and mismatched payload protection passed.');
   if (process.argv.includes('--performance')) {
     for (const path of ['/', '/trades', tradePath]) {
       const samples=[];
@@ -97,13 +124,46 @@ try {
   const forged=await b.submit(editPath,{...input,notes:'HACKED',userId:aTrade.account_id},editHtml);
   assert.match(await forged.text(),/Trade not found or unavailable/);
   assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,null);
-  const bCreated=await b.submit('/trades/new',{...input,symbol:'ONLY_B',rationale:'B private rationale',accountId:aTrade.account_id,userId:'00000000-0000-4000-8000-000000000000'});
+  const bCreated=await b.submit('/trades/new',{...input,symbol:'ONLY_B',rationale:'B private rationale',submissionKey,accountId:aTrade.account_id,userId:'00000000-0000-4000-8000-000000000000'});
   assert.equal(bCreated.status,303);
   const bTrade=(await database.query("select * from trades where symbol='ONLY_B'")).rows[0];assert.notEqual(bTrade.account_id,aTrade.account_id);
   const updated=await a.submit(editPath,{...input,notes:'Owner correction'},editHtml);assert.equal(updated.status,303);
   assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,'Owner correction');
+  const revisionFrom=html=>html.match(/name="revision"[^>]*value="([^"]+)"/)[1];
+  const staleEdit=await a.submit(editPath,{...input,notes:'MY_STALE_DRAFT'},editHtml);
+  const staleEditHtml=await staleEdit.text();assert.match(staleEditHtml,/changed after you opened/);assert.match(staleEditHtml,/MY_STALE_DRAFT/);
+  assert.equal(revisionFrom(staleEditHtml),revisionFrom(editHtml),'a stale response must not silently upgrade the revision');
+  assert.match(staleEditHtml,/Load latest saved version/);
+  assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,'Owner correction');
+  const repeatedStale=await a.submit(editPath,{...input,notes:'MY_STALE_DRAFT'},staleEditHtml);assert.match(await repeatedStale.text(),/changed after you opened/);
+  const freshEdit=await(await a.request(editPath)).text();
+  const recoveredEdit=await a.submit(editPath,{...input,notes:'Owner correction'},freshEdit);assert.equal(recoveredEdit.status,303);
+  const replayAfterEdit=await a.submit('/trades/new',input,newTradeHtml);assert.equal(replayAfterEdit.headers.get('location'),tradePath);
+  assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,'Owner correction');
   const firstOwner=(await database.query('select user_id from trading_accounts where id=$1',[aTrade.account_id])).rows[0].user_id;
   assert.equal((await database.query('select count(*)::int n from trading_accounts where user_id=$1 and is_default',[firstOwner])).rows[0].n,1);
+  const reviewHtml=await(await a.request(tradePath)).text();
+  assert.match(reviewHtml,/Not reviewed yet/);
+  const review={planAdherence:'partly',reviewWentWell:'PRIVATE_REVIEW',reviewImprove:'Wait for confirmation'};
+  const rejectedReview=await b.submit(tradePath,review,reviewHtml);
+  assert.match(await rejectedReview.text(),/Trade not found or unavailable/);
+  const invalidReview=await a.submit(tradePath,{planAdherence:'followed'},reviewHtml);
+  assert.match(await invalidReview.text(),/Add what went well/);
+  assert.equal((await database.query('select reviewed_at from trades where id=$1',[aTrade.id])).rows[0].reviewed_at,null);
+  const savedReview=await a.submit(tradePath,{...review,pnl:'999',accountId:bTrade.account_id},reviewHtml);
+  assert.equal(savedReview.status,200);const savedReviewHtml=await savedReview.text();assert.match(savedReviewHtml,/Review saved/);
+  const staleReview=await a.submit(tradePath,{...review,reviewWentWell:'STALE_REVIEW_DRAFT'},reviewHtml);
+  const staleReviewHtml=await staleReview.text();assert.match(staleReviewHtml,/changed after you opened/);assert.match(staleReviewHtml,/STALE_REVIEW_DRAFT/);
+  assert.equal(revisionFrom(staleReviewHtml),revisionFrom(reviewHtml));
+  assert.equal((await database.query('select review_went_well from trades where id=$1',[aTrade.id])).rows[0].review_went_well,'PRIVATE_REVIEW');
+  const reviewedHtml=await(await a.request(tradePath)).text();assert.match(reviewedHtml,/PRIVATE_REVIEW/);assert.match(reviewedHtml,/Last saved/);
+  assert.ok(!(await(await b.request(tradePath)).text()).includes('PRIVATE_REVIEW'));
+  const reviewedRow=(await database.query('select * from trades where id=$1',[aTrade.id])).rows[0];
+  assert.equal(reviewedRow.pnl,null);assert.equal(reviewedRow.account_id,aTrade.account_id);assert.equal(reviewedRow.rationale,input.rationale);
+  const revised=await a.submit(tradePath,{planAdherence:'followed',reviewImprove:'Revised reflection'},savedReviewHtml);assert.equal(revised.status,200);assert.match(await revised.text(),/Review saved/);
+  assert.equal((await database.query('select review_went_well from trades where id=$1',[aTrade.id])).rows[0].review_went_well,null);
+  console.log('Revision HTTP: stale trade/review drafts retained, latest data preserved, fresh reload and successive review saves passed.');
+  console.log('Review HTTP: validation, save/reload/edit, cross-owner denial and unchanged trade data passed.');
   // Exercise filters through the real server, with enough matches for two pages.
   await database.query("insert into trades (account_id,symbol,direction,entry_price,quantity,entry_time) select $1,'ONLY_A','LONG',1,1,'2026-01-01 12:00:00'::timestamp from generate_series(1,25)",[aTrade.account_id]);
   const filteredPath='/trades?symbol=ONLY_A&direction=LONG&status=open&from=2026-01-01&to=2026-01-01';
@@ -128,8 +188,39 @@ try {
   const performanceAfter = await(await a.request('/performance')).text();
   assert.match(performanceAfter,/OWNER_SETUP/);assert.match(performanceAfter,/12\.34/);assert.match(performanceAfter,/100\.0%/);
   const otherPerformance = await(await b.request('/performance')).text();assert.ok(otherPerformance.includes('ONLY_B'));assert.ok(!otherPerformance.includes('OWNER_SETUP'));assert.ok(!otherPerformance.includes('ONLY_A'));
+  const datedPerformance=await(await a.request('/performance?from=2026-01-01&to=2026-01-01')).text();
+  assert.match(datedPerformance,/OWNER_SETUP/);assert.match(datedPerformance,/12\.34/);assert.ok(!datedPerformance.includes('ONLY_B'));
+  assert.match(datedPerformance,/href="\/trades\?from=2026-01-01&amp;to=2026-01-01"/);
+  assert.match(await(await a.request('/performance?from=2027-01-01')).text(),/No trades match these entry dates/);
+  for(const query of ['from=2026-02-30','from=2026-02-01&to=2026-01-01','from=2026-01-01&from=2026-01-02']) {
+    const html=await(await a.request('/performance?'+query)).text();assert.match(html,/Check your dates/);assert.ok(!html.includes('<table'));
+  }
+  console.log('Performance periods HTTP: matching journal link, empty range, invalid/repeated dates and owner scope passed.');
   console.log('Performance HTTP: setup/symbol groups, unmeasured display, recorded results and owner isolation passed.');
+  const queueRow=(await database.query("insert into trades(account_id,symbol,direction,entry_price,quantity,entry_time,exit_price,exit_time) values ($1,'QUEUE_A','LONG',1,1,'2026-01-01',2,'2026-01-02') returning id",[aTrade.account_id])).rows[0];
+  const queuePath='/trades?status=closed&review=unreviewed';
+  const queueHtml=await(await a.request(queuePath)).text();assert.match(queueHtml,/QUEUE_A/);assert.ok(!queueHtml.includes('ONLY_A</a>'));
+  assert.ok(!(await(await b.request(queuePath)).text()).includes('QUEUE_A'));
+  const queueSaved=await a.submit('/trades/'+queueRow.id,{planAdherence:'followed',reviewWentWell:'Queue complete'});assert.match(await queueSaved.text(),/Review saved/);
+  assert.match(await(await a.request(queuePath)).text(),/No trades match these filters/);
+  assert.match(await(await a.request('/trades?review=reviewed')).text(),/QUEUE_A/);
+  assert.match(await(await a.request('/trades?review=invalid')).text(),/Check your filters/);
+  console.log('Review queue HTTP: closed/unreviewed scope, save removes row, owner isolation and invalid filters passed.');
+  const exportResponse=await a.request('/trades/export?symbol=ONLY_A&page=2');assert.equal(exportResponse.status,200);
+  assert.match(exportResponse.headers.get('content-type'),/text\/csv/);assert.match(exportResponse.headers.get('cache-control'),/no-store/);
+  assert.match(exportResponse.headers.get('content-disposition'),/attachment/);
+  const csv=await exportResponse.text();assert.equal((csv.match(/"ONLY_A"/g)??[]).length,26);assert.ok(!csv.includes('ONLY_B'));assert.ok(!csv.includes('submission_hash'));
+  const otherCsv=await(await b.request('/trades/export')).text();assert.ok(otherCsv.includes('ONLY_B'));assert.ok(!otherCsv.includes('ONLY_A'));
+  assert.equal((await a.request('/trades/export?review=bad')).status,400);
+  assert.equal((await a.request('/trades/export?symbol=ONLY_A&symbol=ONLY_B')).status,400);
+  const emptyCsv=await(await a.request('/trades/export?symbol=MISSING')).text();assert.equal(emptyCsv.trim().split('\r\n').length,1);
+  await database.query("insert into trades(account_id,symbol,direction,entry_price,quantity,entry_time) select $1,'EXPORT_LIMIT','LONG',1,1,'2026-01-01'::timestamp from generate_series(1,2001)",[aTrade.account_id]);
+  assert.equal((await a.request('/trades/export?symbol=EXPORT_LIMIT')).status,422);
+  console.log('Export HTTP: all filtered pages, private attachment headers, owner isolation, invalid/empty/oversized responses passed.');
   await a.submit('/account',{});
+  assert.equal((await a.request('/trades/export')).headers.get('location'),'/sign-in');
+  const deniedReview=await a.submit(tradePath,review,reviewHtml);assert.equal(deniedReview.headers.get('location'),'/sign-in');
+  assert.equal((await database.query('select review_improve from trades where id=$1',[aTrade.id])).rows[0].review_improve,'Revised reflection');
   const denied=await a.submit(editPath,{...input,notes:'SIGNED OUT'},editHtml);assert.equal(denied.headers.get('location'),'/sign-in');
   assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,'Owner correction');
   for(const session of sessions.values())session.session.expiresAt=new Date(0).toISOString();
@@ -146,11 +237,50 @@ try {
       }
       await pages[0].goto(base.replace('127.0.0.1','localhost')+'/trades/new');
       for(const [name,value]of Object.entries(input)) {const field=pages[0].locator(`[name="${name}"]`);if(name==='direction')await field.selectOption(value);else await field.fill(value);}
+      const browserSubmissionKey=await pages[0].locator('[name="submissionKey"]').inputValue();
+      await pages[0].locator('[name="pnl"]').fill('1');
+      await pages[0].getByRole('button',{name:'Save trade',exact:true}).click();
+      await pages[0].getByRole('alert').filter({hasText:'P&L can only be recorded'}).waitFor();
+      assert.equal(await pages[0].locator('[name="submissionKey"]').inputValue(),browserSubmissionKey);
+      for (const [name,value] of Object.entries(input)) assert.equal(await pages[0].locator(`[name="${name}"]`).inputValue(),value,`validation preserves ${name}`);
+      await pages[0].locator('[name="pnl"]').fill('');
       await pages[0].getByRole('button',{name:'Save trade',exact:true}).click();await pages[0].waitForURL(/\/trades\/[a-f0-9-]+$/);
       const path=new URL(pages[0].url()).pathname;await pages[0].reload();assert.ok((await pages[0].textContent('body')).includes('A private rationale'));
+      await pages[0].getByLabel('Did you follow your plan?').selectOption('partly');
+      await pages[0].getByLabel('What went well?').fill('Browser reflection');
+      await pages[0].getByRole('button',{name:'Save review',exact:true}).click();
+      await pages[0].getByText('Last saved (UTC):',{exact:false}).waitFor();
+      await pages[0].reload();assert.equal(await pages[0].getByLabel('What went well?').inputValue(),'Browser reflection');
+      const editTab=await contexts[0].newPage();
+      await editTab.goto(base.replace('127.0.0.1','localhost')+path+'/edit');
+      await editTab.getByLabel('Notes',{exact:true}).fill('STALE_BROWSER_TRADE');
+      await pages[0].getByLabel('What went well?').fill('New browser reflection');
+      await pages[0].getByRole('button',{name:'Save review',exact:true}).click();
+      await pages[0].getByRole('status').filter({hasText:'Review saved.'}).waitFor();
+      await editTab.getByRole('button',{name:'Save changes',exact:true}).click();
+      await editTab.getByRole('alert').filter({hasText:'changed after you opened'}).waitFor();
+      assert.equal(await editTab.getByLabel('Notes',{exact:true}).inputValue(),'STALE_BROWSER_TRADE');
+      await Promise.all([editTab.waitForEvent('domcontentloaded'), editTab.getByRole('link',{name:'Load latest saved version (discards this draft)',exact:true}).click()]);
+      await editTab.getByLabel('Notes',{exact:true}).fill('Fresh browser correction');
+      await editTab.getByRole('button',{name:'Save changes',exact:true}).click();await editTab.waitForURL('**'+path);
+      await pages[0].getByLabel('What went well?').fill('STALE_BROWSER_REVIEW');
+      await pages[0].getByRole('button',{name:'Save review',exact:true}).click();
+      await pages[0].getByRole('alert').filter({hasText:'changed after you opened'}).waitFor();
+      assert.equal(await pages[0].getByLabel('What went well?').inputValue(),'STALE_BROWSER_REVIEW');
+      await Promise.all([pages[0].waitForEvent('domcontentloaded'), pages[0].getByRole('link',{name:'Load latest saved version (discards this draft)',exact:true}).click()]);
+      assert.equal(await pages[0].getByLabel('What went well?').inputValue(),'New browser reflection');
+      await editTab.close();
+
       await pages[0].goto(base.replace('127.0.0.1','localhost')+'/performance');
       await pages[0].getByRole('heading',{name:'Performance breakdowns',exact:true}).waitFor();
       assert.ok((await pages[0].getByRole('region',{name:'By symbol',exact:true}).textContent()).includes('ONLY_A'));
+      await pages[0].getByLabel('From entry date (UTC)',{exact:true}).fill('2027-01-01');
+      await pages[0].getByRole('button',{name:'Apply dates',exact:true}).click();
+      await pages[0].getByText('No trades match these entry dates.',{exact:false}).waitFor();
+      assert.equal(new URL(pages[0].url()).searchParams.get('from'),'2027-01-01');
+      await pages[0].getByRole('link',{name:'All time',exact:true}).click();
+      await pages[0].getByRole('region',{name:'By symbol',exact:true}).waitFor();
+      assert.equal(await pages[0].getByLabel('From entry date (UTC)',{exact:true}).inputValue(),'');
       await pages[1].goto(base.replace('127.0.0.1','localhost')+'/performance');
       await pages[1].getByText('No trades yet.',{exact:false}).waitFor();
       await pages[1].goto(base.replace('127.0.0.1','localhost')+path);assert.ok(!(await pages[1].textContent('body')).includes('A private rationale'));
@@ -162,6 +292,11 @@ try {
       await pages[0].getByRole('link',{name:'Clear filters',exact:true}).first().click();
       await pages[0].waitForURL(url=>url.pathname==='/trades'&&!url.search);
       assert.ok((await pages[0].textContent('table')).includes('ONLY_A'));
+      const downloadEvent=pages[0].waitForEvent('download');
+      await pages[0].getByRole('link',{name:'Export matching trades (CSV)',exact:true}).click();
+      const download=await downloadEvent;assert.equal(download.suggestedFilename(),'rationale-trades.csv');
+      const browserCsv=await readFile(await download.path(),'utf8');assert.ok(browserCsv.includes('ONLY_A'));assert.ok(!browserCsv.includes('ONLY_B'));
+
       console.log('Two isolated Chromium contexts: signup, trade creation, refresh and cross-user denial passed.');
     } finally {await browser.close();}
   }
