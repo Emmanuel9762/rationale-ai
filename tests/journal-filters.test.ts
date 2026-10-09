@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { breakdownJournalHref, parseJournalFilters, journalHref } from "../src/lib/journal-filters";
+import { PLAN_ADHERENCE_LABELS } from "../src/lib/plan-adherence";
 
 test("journal URLs normalize symbols and retain filters across pagination", () => {
   const { filters, page, errors } = parseJournalFilters({symbol:" eur/usd ",direction:"SHORT",status:"closed",review:"unreviewed",from:"2024-02-29",to:"2024-03-01",page:"2"});
@@ -17,6 +18,7 @@ test("journal URLs normalize symbols and retain filters across pagination", () =
 
 test("invalid and ambiguous filters are reported instead of silently broadening the journal", () => {
   for (const params of [
+    {adherence:"unknown"}, {adherence:["followed","partly"]}, {adherence:"toString"},
     {setup:"x".repeat(101)}, {setup:["A","B"]}, {missing:["setup","symbol"]},
     {missing:"other"}, {missing:"setup",setup:"Breakout"}, {missing:"symbol",symbol:"EURUSD"},
     {review:"invalid"}, {review:["reviewed","unreviewed"]}, {symbol:"x".repeat(21)}, {status:"all-users"}, {direction:"SIDEWAYS"},
@@ -29,6 +31,14 @@ test("invalid and ambiguous filters are reported instead of silently broadening 
 
 test("breakdown links round-trip literal and missing labels with dates and pagination", () => {
   const period = {from:"2026-01-01",to:"2026-01-31"};
+  for (const adherence of Object.keys(PLAN_ADHERENCE_LABELS)) {
+    const url=new URL(breakdownJournalHref("adherence",adherence,period),"https://example.test");
+    const parsed=parseJournalFilters(Object.fromEntries(url.searchParams));
+    assert.deepEqual(parsed.errors,[]);assert.equal(parsed.filters.adherence,adherence);
+    const next=new URL(journalHref(parsed.filters,2),url);
+    assert.deepEqual(parseJournalFilters(Object.fromEntries(next.searchParams)).filters,parsed.filters);
+    assert.equal(next.searchParams.get("from"),period.from);assert.equal(next.searchParams.get("to"),period.to);
+  }
   for (const by of ["setup","symbol"] as const) {
     for (const group of [null,"Not specified","A&B=%_","\tLABEL\t"]) {
       const url = new URL(breakdownJournalHref(by,group,period),"https://example.test");
