@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Keep the Node HTTP transport native (including its IPv4 dispatcher).
+  serverExternalPackages: ["undici"],
   reactCompiler: true,
 };
 
