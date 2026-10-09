@@ -532,3 +532,31 @@ Acceptance: choose dates on Performance, select a setup or symbol, and compare
 the journal with its Total trades count. Export the selection or narrow it to
 closed trades. Use Clear filters to restore the complete journal. CP27 builds on
 CP26 (PR #13); fetch and switch to `codex/cp27-performance-drilldown` to try it.
+
+## CP28 — compare outcomes by plan adherence
+
+Performance now includes a plan-adherence breakdown using the latest saved review:
+followed, partly followed, and did not follow. Unreviewed trades stay separate;
+legacy reviewed rows without a valid assessment have their own group. Each row
+links to its complete journal sample with UTC entry dates preserved. The journal
+adds an adherence selector retained in pagination and CSV exports. Review saves
+invalidate Performance as well as the journal and detail page.
+
+Aggregation and drill-down share the same SQL classification, including open and
+missing-P&L trades in total counts. Existing numeric outcome calculations and
+owner scope apply unchanged. The page explains that these are self-assessments
+and descriptive comparisons, not evidence of causation. No migration, dependency,
+environment changes or live database writes.
+
+Verified locally: 49 tests, lint, typecheck, production build, signed-out access
+and full-app HTTP checks. Coverage includes every classification, malformed legacy
+assessments, >25 matches, CSV/pagination parity, combined filters, entry-date
+boundaries, owner isolation and regrouping after review edits without P&L changes.
+HTTP checks verify dated links, selected filters, scoped CSV and invalid queries.
+The CI browser gate follows an adherence link, checks dates/export and clears the
+filter. Local Chromium remains unavailable; remote CI is the browser gate.
+
+Acceptance: open Performance, choose dates, select a plan-adherence group and
+compare its Total trades with the matching journal. Edit one trade's review,
+return to Performance and confirm its group changed. CP28 builds on CP27 (PR #14);
+fetch and switch to `codex/cp28-plan-adherence` to try it.

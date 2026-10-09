@@ -2,7 +2,7 @@ import { and, asc, eq, gte, lt, sql } from "drizzle-orm";
 import type { db } from "../db";
 import { trades, tradingAccounts } from "../db/schema";
 import type { JournalFilters } from "./journal-filters";
-import { tradeGroup } from "./trade-group";
+import { tradeGroup, type TradeGroupDimension } from "./trade-group";
 
 function metricColumns() {
   const closed = sql`${trades.exitTime} is not null and ${trades.exitPrice} is not null`;
@@ -52,7 +52,7 @@ export async function tradeMetrics(database: Pick<typeof db, "select">, userId: 
   return summarize(result);
 }
 
-export async function tradeBreakdown(database: Pick<typeof db, "select">, userId: string, by: "setup" | "symbol", period: Pick<JournalFilters, "from" | "to"> = {}) {
+export async function tradeBreakdown(database: Pick<typeof db, "select">, userId: string, by: TradeGroupDimension, period: Pick<JournalFilters, "from" | "to"> = {}) {
   const until = period.to ? new Date(`${period.to}T00:00:00.000Z`) : undefined;
   if (until) until.setUTCDate(until.getUTCDate() + 1);
   const group = tradeGroup(by);

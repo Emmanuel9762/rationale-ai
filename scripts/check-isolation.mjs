@@ -182,7 +182,7 @@ try {
   const performanceBefore = await(await a.request('/performance')).text();
   assert.match(performanceBefore,/Performance breakdowns/);assert.match(performanceBefore,/By setup/);assert.match(performanceBefore,/By symbol/);
   assert.ok(performanceBefore.includes('ONLY_A'));assert.ok(!performanceBefore.includes('ONLY_B'));
-  const rowsBefore=performanceBefore.match(/<tbody>[\s\S]*?<\/tbody>/g);assert.equal(rowsBefore.length,2);
+  const rowsBefore=performanceBefore.match(/<tbody>[\s\S]*?<\/tbody>/g);assert.equal(rowsBefore.length,3);
   assert.ok(rowsBefore.every(table=>table.includes('—')),'open-only groups have no measured results');
   await database.query("update trades set setup='OWNER_SETUP',exit_price=2,exit_time='2026-01-01 13:00:00',pnl=12.34 where id=$1",[aTrade.id]);
   const performanceAfter = await(await a.request('/performance')).text();
@@ -195,13 +195,23 @@ try {
   assert.match(datedPerformance,/OWNER_SETUP/);assert.match(datedPerformance,/12\.34/);assert.ok(!datedPerformance.includes('ONLY_B'));
   assert.match(datedPerformance,/href="\/trades\?from=2026-01-01&amp;to=2026-01-01"/);
   assert.match(datedPerformance,/href="\/trades\?setup=OWNER_SETUP&amp;from=2026-01-01&amp;to=2026-01-01"/);
+  assert.match(datedPerformance,/By plan adherence/);assert.match(datedPerformance,/Followed my plan/);
+  const adherenceQuery='adherence=followed&from=2026-01-01&to=2026-01-01';
+  assert.ok(datedPerformance.includes('/trades?'+adherenceQuery.replaceAll('&','&amp;')));
+  const adherenceHtml=await(await a.request('/trades?'+adherenceQuery)).text();
+  assert.ok(adherenceHtml.includes(`href="${tradePath}"`));
+  assert.match(adherenceHtml,/<option value="followed" selected="">Followed my plan/);
+  const adherenceCsv=await(await a.request('/trades/export?'+adherenceQuery)).text();
+  assert.equal((adherenceCsv.match(/ONLY_A/g)||[]).length,1);assert.ok(!adherenceCsv.includes('ONLY_B'));
+  assert.match(await(await b.request('/trades?'+adherenceQuery)).text(),/No trades match these filters/);
+  assert.ok(!(await(await a.request('/trades?adherence=unreviewed')).text()).includes(`href="${tradePath}"`));
   const drillQuery='setup=OWNER_SETUP&from=2026-01-01&to=2026-01-01';
   const drilled=await(await a.request('/trades?'+drillQuery)).text();
   assert.ok(drilled.includes(`href="${tradePath}"`));assert.match(drilled,/name="setup"[^>]*value="OWNER_SETUP"/);
   assert.match(drilled,/\/trades\/export\?setup=OWNER_SETUP&amp;from=2026-01-01&amp;to=2026-01-01/);
   assert.match(await(await b.request('/trades?'+drillQuery)).text(),/No trades match these filters/);
   assert.ok(!(await(await a.request('/trades?missing=setup')).text()).includes(`href="${tradePath}"`));
-  for(const query of ['setup=A&setup=B','missing=setup&setup=OWNER_SETUP','missing=unknown']) {
+  for(const query of ['setup=A&setup=B','missing=setup&setup=OWNER_SETUP','missing=unknown','adherence=unknown','adherence=followed&adherence=partly']) {
     assert.match(await(await a.request('/trades?'+query)).text(),/Check your filters/);
     assert.equal((await a.request('/trades/export?'+query)).status,400);
   }
@@ -297,6 +307,17 @@ try {
       await pages[0].getByLabel('Through entry date (UTC)',{exact:true}).fill('2026-01-01');
       await pages[0].getByRole('button',{name:'Apply dates',exact:true}).click();
       await pages[0].waitForURL(/\/performance\?.*from=2026-01-01/);
+      const datedPerformanceUrl=pages[0].url();
+      await pages[0].getByRole('link',{name:'View trades for adherence: Partly followed my plan',exact:true}).click();
+      await pages[0].getByRole('heading',{name:'Trade history',exact:true}).waitFor();
+      assert.equal(await pages[0].locator('[name="adherence"]').inputValue(),'partly');
+      assert.equal(await pages[0].locator('[name="from"]').inputValue(),'2026-01-01');
+      assert.equal(await pages[0].locator('[name="to"]').inputValue(),'2026-01-01');
+      assert.ok((await pages[0].getByRole('link',{name:'Export matching trades (CSV)',exact:true}).getAttribute('href')).includes('adherence=partly'));
+      await pages[0].getByRole('link',{name:'Clear filters',exact:true}).click();
+      await pages[0].waitForURL('**/trades');
+      assert.equal(await pages[0].locator('[name="adherence"]').inputValue(),'');
+      await pages[0].goto(datedPerformanceUrl);
       await pages[0].getByRole('link',{name:'View trades for setup: BROWSER_SETUP',exact:true}).click();
       await pages[0].getByRole('heading',{name:'Trade history',exact:true}).waitFor();
       assert.equal(new URL(pages[0].url()).searchParams.get('setup'),'BROWSER_SETUP');
