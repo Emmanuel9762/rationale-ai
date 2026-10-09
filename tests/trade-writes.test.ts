@@ -25,11 +25,11 @@ test("reuse development account, edit and close a persisted trade, enforce write
     assert.equal("accountId" in input, false);
     const [trade] = await db.insert(trades).values({ ...input, accountId }).returning();
     form.set("notes", "Corrected notes");
-    assert.equal(await updateOwnedTrade(db, other.id, trade.id, parseTradeInput(form)), null);
-    assert.equal(await updateOwnedTrade(db, user.id, "bad-id", input), null);
-    assert.equal(await updateOwnedTrade(db, user.id, trade.id, parseTradeInput(form)), trade.id);
+    assert.equal(await updateOwnedTrade(db, other.id, trade.id, parseTradeInput(form), 0), null);
+    assert.equal(await updateOwnedTrade(db, user.id, "bad-id", input, 0), null);
+    assert.equal(await updateOwnedTrade(db, user.id, trade.id, parseTradeInput(form), 0), trade.id);
     form.set("exitPrice", "1.2"); form.set("exitTime", "2026-09-21T13:00"); form.set("pnl", "25.50");
-    assert.equal(await updateOwnedTrade(db, user.id, trade.id, parseTradeInput(form)), trade.id);
+    assert.equal(await updateOwnedTrade(db, user.id, trade.id, parseTradeInput(form), 1), trade.id);
     const saved = await tradeRepository(db).find(user.id, trade.id);
     assert.equal(saved?.pnl, "25.50"); assert.equal(saved?.notes, "Corrected notes");
     assert.equal(saved?.rationale, "Original reason");
