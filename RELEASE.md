@@ -1,51 +1,60 @@
 # Verification and release rehearsal
 
 This is a reviewable development increment, not a production deployment.
-CP11–25 are consolidated on `main` as of 2026-10-09. The required schema has
-seven migrations through `0006_trade_revision`; CP26 adds no migration.
-The working user branch remains `cp13-auth`; do not replace its credentials with
-those of a test branch. Do not rerun ownership linking for an already-linked journal.
+CP32 includes the CP26–31 feature stack and requires nine migrations through
+`0008_import_trade_links`. Earlier consolidation evidence below describes its
+historical commit only. Keep the existing database/Auth pairing; never rerun
+ownership linking for an already-linked journal.
 
-## Reconcile locally (Fish)
+## Reconcile and verify locally (Fish)
 
-Stop the old development server with Ctrl+C. Run only commands in these blocks;
-Git's file summaries and terminal output are not commands.
+Stop the development server with Ctrl+C. Preserve local work before switching.
+If README.md is your only modified file, a named stash keeps it recoverable:
 
 ```fish
-cd ~/Desktop/Projects/rational-ai/rationale-ai
 git status --short --branch
+git stash push -m "README edits before CP32" -- README.md
+```
+
+Inspect and preserve any other changes separately; do not reset or clean them.
+Then run this success-chained sequence from the repository:
+
+```fish
 git fetch origin
-git switch main
-git pull --ff-only origin main
-npm ci --no-audit --no-fund
+and git switch codex/cp32-release-preflight
+and git merge --ff-only origin/codex/cp32-release-preflight
+and npm ci --no-audit --no-fund
 ```
 
-If a fast-forward is refused, inspect local commits before reconciling them.
-Your README edit can normally carry across; preserve it if Git reports a conflict.
-Do not use reset/clean to resolve it. Keep the current working DATABASE_URL,
-NEON_AUTH_BASE_URL and NEON_AUTH_COOKIE_SECRET. Add this to `.env.local`:
-
-```dotenv
-APP_ORIGIN=http://localhost:3000
-```
-
-Clear old shell overrides and verify the database before starting:
+A failed checkout leaves the previous branch active. Stop if any command fails.
+Keep the README stash until you deliberately reconcile its edits. Check the private
+`.env.local` target and its existing Auth pairing before clearing a stale override:
 
 ```fish
 set -e DATABASE_URL
-set -e NEON_AUTH_BASE_URL
-set -e NEON_AUTH_COOKIE_SECRET
-set -e APP_ORIGIN
-npm run db:verify
-npm run dev
+npm run release:verify -- --expect-ref origin/codex/cp32-release-preflight
+and npm run dev
 ```
 
-`db:verify` performs SELECTs only. It checks ledger hashes/order/timestamps and
-required identity/default-account/review/submission/revision columns/indexes. It is not a complete schema-diff
-tool. If it reports pending migrations, follow MIGRATIONS.md on a disposable branch
-first. Missing/conflicting history must be investigated; never manufacture ledger
-rows or reset a populated database. A matching ledger alone cannot prove that every
-schema object matches the source.
+`release:verify` requires an explicit expected ref or commit. It resolves that ref
+locally, requires HEAD to match exactly, and rejects modified, staged or untracked
+files before starting `db:verify`. Ignored files such as `.env.local` are allowed
+and their contents are not printed. Detached HEAD at the exact commit is allowed.
+It checks the checkout again after database verification and reports the full SHA.
+It does not fetch: fetch immediately beforehand, or use a reviewed immutable SHA.
+Passing HEAD merely compares the checkout with itself and is not an upgrade check.
+
+`db:verify` performs SELECTs only, comparing migration hashes/order/timestamps and
+required schema checks. Expect nine verified migrations, zero pending. Pending or
+conflicting history exits unsuccessfully; the wrapper never applies migrations.
+Follow MIGRATIONS.md's disposable-copy rehearsal before migrating the intended
+database, then rerun release:verify. Missing/conflicting history needs inspection;
+never manufacture ledger rows or reset a populated database.
+
+This check cannot establish that the configured database/Auth pair is the intended
+one, prove every schema object, validate ignored configuration, or replace CI and
+browser acceptance. Do not modify the checkout while verification is running.
+It neither merges PRs nor deploys code.
 
 ## Acceptance checks on the laptop
 
@@ -64,6 +73,11 @@ Use http://localhost:3000, not the LAN IP or 127.0.0.1.
    localhost origin; set a new password. Confirm the old password fails, the new
    password succeeds, and reopening/reusing the reset link is rejected on submit.
    Your journal must remain unchanged. Never share reset URLs, passwords or codes.
+
+5. On a test account, preview a valid CSV, confirm it and open Import history.
+   Follow the new batch, narrow the journal and export it. Replaying the same CSV
+   must not add trades. Edit a linked trade and confirm it remains in the batch.
+   Older CP30 receipts can show unavailable links; do not infer their membership.
 
 No automated tests send emails to your personal account. Inbox delivery, spam
 placement and actual browser cookies must be validated in this environment.

@@ -60,3 +60,12 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## CP32 release verification
+
+After fetching and successfully switching to the intended checkpoint, run
+`npm run release:verify -- --expect-ref origin/codex/cp32-release-preflight`.
+The read-only gate requires an exact, clean checkout before database verification;
+expect nine migrations and zero pending. It never applies migrations. See
+[RELEASE.md](RELEASE.md) for Fish commands, preserving README edits, environment
+pairing and browser acceptance. No schema or dependency change in CP32.
