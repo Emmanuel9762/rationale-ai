@@ -68,3 +68,15 @@ test("batch filters validate UUIDs and survive filtering, pagination and export 
   assert.equal(url.searchParams.get("import"),id.toLowerCase());
   assert.deepEqual(parseJournalFilters(Object.fromEntries(url.searchParams)).filters,parsed.filters);
 });
+
+test("recorded outcomes round-trip and reject invalid, repeated or open-only combinations", () => {
+  for (const outcome of ["win","loss","breakeven","measured","missing"]) {
+    const parsed=parseJournalFilters({outcome,review:"unreviewed",from:"2026-01-01"});
+    assert.deepEqual(parsed.errors,[]);
+    const url=new URL(journalHref(parsed.filters,2),"https://example.test");
+    assert.equal(url.searchParams.get("outcome"),outcome);
+    assert.deepEqual(parseJournalFilters(Object.fromEntries(url.searchParams)).filters,parsed.filters);
+    assert.ok(parseJournalFilters({outcome,status:"open"}).errors.length);
+  }
+  for (const outcome of ["unknown","toString",["win","loss"]]) assert.ok(parseJournalFilters({outcome}).errors.length);
+});

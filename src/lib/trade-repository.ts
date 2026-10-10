@@ -5,6 +5,8 @@ import { trades, tradingAccounts } from "../db/schema";
 import type { JournalFilters } from "./journal-filters";
 import { tradeGroup } from "./trade-group";
 
+import { outcomeCondition } from "./trade-outcome";
+
 export const PAGE_SIZE = 25;
 export const EXPORT_LIMIT = 2000;
 export class ExportLimitError extends Error {}
@@ -30,6 +32,7 @@ export function tradeRepository(database: Pick<typeof db, "select">) {
       filters.symbol ? sql`${tradeGroup("symbol")} = ${filters.symbol.toUpperCase()}` : undefined,
       filters.setup ? sql`${tradeGroup("setup")} = ${filters.setup}` : undefined,
       filters.missing ? isNull(tradeGroup(filters.missing)) : undefined,
+      filters.outcome ? outcomeCondition(filters.outcome) : undefined,
       filters.direction ? eq(trades.direction, filters.direction) : undefined,
       filters.status === "closed" ? and(isNotNull(trades.exitTime), isNotNull(trades.exitPrice)) : undefined,
       filters.status === "open" ? or(isNull(trades.exitTime), isNull(trades.exitPrice)) : undefined,

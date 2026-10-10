@@ -1,8 +1,11 @@
 import { isPlanAdherenceGroup, type PlanAdherenceGroup } from "./plan-adherence";
 import type { TradeGroupDimension } from "./trade-group";
 
+import { isTradeOutcome, type TradeOutcome } from "./outcome-labels";
+
 export type JournalSearchParams = Record<string, string | string[] | undefined>;
 export type JournalFilters = {
+  outcome?: TradeOutcome;
   import?: string;
   symbol?: string;
   setup?: string;
@@ -49,6 +52,10 @@ export function parseJournalFilters(params: JournalSearchParams) {
   const status = value("status");
   if (status === "open" || status === "closed") filters.status = status;
   else if (status) errors.push("Choose Open / incomplete, Closed, or all statuses.");
+  const outcome = value("outcome");
+  if (isTradeOutcome(outcome)) filters.outcome = outcome;
+  else if (outcome) errors.push("Choose a valid recorded outcome.");
+  if (filters.outcome && filters.status === "open") errors.push("Recorded outcomes require closed trades. Change Status to Closed or All statuses.");
   const review = value("review");
   if (review === "reviewed" || review === "unreviewed") filters.review = review;
   else if (review) errors.push("Choose Reviewed, Unreviewed, or all reviews.");
@@ -68,7 +75,7 @@ export function parseJournalFilters(params: JournalSearchParams) {
 
 export function journalHref(filters: JournalFilters, page = 1) {
   const params = new URLSearchParams();
-  for (const key of ["import", "symbol", "setup", "missing", "direction", "status", "review", "adherence", "from", "to"] as const) {
+  for (const key of ["import", "symbol", "setup", "missing", "direction", "status", "outcome", "review", "adherence", "from", "to"] as const) {
     if (filters[key]) params.set(key, filters[key]);
   }
   if (page > 1) params.set("page", String(page));
