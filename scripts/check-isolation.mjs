@@ -195,6 +195,13 @@ try {
   const outcomeRow=performanceAfter.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/g).find(row=>row.includes('OWNER_SETUP'));
   const outcomeCells=[...outcomeRow.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/g)].map(match=>decode(match[1]));
   assert.deepEqual(outcomeCells.slice(-4),['12.34','12.34','—','∞']);
+  const winnerQuery='symbol=ONLY_A&outcome=win';
+  const winnerHtml=await(await a.request('/trades?'+winnerQuery)).text();
+  assert.ok(winnerHtml.includes(`href="${tradePath}"`));
+  assert.match(winnerHtml,/<option value="win" selected="">Wins/);
+  assert.equal(((await(await a.request('/trades/export?'+winnerQuery)).text()).match(/ONLY_A/g)||[]).length,1);
+  assert.ok(!(await(await a.request('/trades?symbol=ONLY_A&outcome=loss')).text()).includes(`href="${tradePath}"`));
+  assert.match(await(await b.request('/trades?'+winnerQuery)).text(),/No trades match these filters/);
   const otherPerformance = await(await b.request('/performance')).text();assert.ok(otherPerformance.includes('ONLY_B'));assert.ok(!otherPerformance.includes('OWNER_SETUP'));assert.ok(!otherPerformance.includes('ONLY_A'));
   const datedPerformance=await(await a.request('/performance?from=2026-01-01&to=2026-01-01')).text();
   assert.match(datedPerformance,/OWNER_SETUP/);assert.match(datedPerformance,/12\.34/);assert.ok(!datedPerformance.includes('ONLY_B'));
@@ -216,7 +223,7 @@ try {
   assert.match(drilled,/\/trades\/export\?setup=OWNER_SETUP&amp;from=2026-01-01&amp;to=2026-01-01/);
   assert.match(await(await b.request('/trades?'+drillQuery)).text(),/No trades match these filters/);
   assert.ok(!(await(await a.request('/trades?missing=setup')).text()).includes(`href="${tradePath}"`));
-  for(const query of ['setup=A&setup=B','missing=setup&setup=OWNER_SETUP','missing=unknown','adherence=unknown','adherence=followed&adherence=partly']) {
+  for(const query of ['outcome=unknown','outcome=win&outcome=loss','outcome=win&status=open','setup=A&setup=B','missing=setup&setup=OWNER_SETUP','missing=unknown','adherence=unknown','adherence=followed&adherence=partly']) {
     assert.match(await(await a.request('/trades?'+query)).text(),/Check your filters/);
     assert.equal((await a.request('/trades/export?'+query)).status,400);
   }
@@ -432,9 +439,12 @@ try {
       await pages[0].getByRole('heading',{name:'Trade history',exact:true}).waitFor();
       assert.equal(await pages[0].getByLabel('Import batch',{exact:true}).inputValue(),browserReceipt);
       await pages[0].getByLabel('Symbol (exact)',{exact:true}).fill('BATCH_BROWSER');
+      await pages[0].getByLabel('Recorded outcome',{exact:true}).selectOption('win');
       await pages[0].getByRole('button',{name:'Apply filters',exact:true}).click();
       await pages[0].waitForURL(url=>url.searchParams.get('symbol')==='BATCH_BROWSER'&&url.searchParams.get('import')===browserReceipt);
       assert.ok((await pages[0].getByRole('link',{name:'Export matching trades (CSV)',exact:true}).getAttribute('href')).includes('import='+browserReceipt));
+      assert.equal(new URL(pages[0].url()).searchParams.get('outcome'),'win');
+      assert.ok((await pages[0].getByRole('link',{name:'Export matching trades (CSV)',exact:true}).getAttribute('href')).includes('outcome=win'));
       await pages[1].goto(base.replace('127.0.0.1','localhost')+'/trades/imports');
       await pages[1].getByText('No imports yet.',{exact:false}).waitFor();
       await pages[1].goto(base.replace('127.0.0.1','localhost')+'/trades?import='+browserReceipt);

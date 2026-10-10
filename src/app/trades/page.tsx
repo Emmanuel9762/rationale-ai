@@ -2,6 +2,7 @@ import { requireCurrentUser } from "@/lib/auth/current-user";
 import Link from "next/link";
 import { db } from "@/db";
 import { EXPORT_LIMIT, tradeRepository } from "@/lib/trade-repository";
+import { OUTCOME_LABELS } from "@/lib/outcome-labels";
 import { PLAN_ADHERENCE_LABELS } from "@/lib/plan-adherence";
 
 import { parseJournalFilters, journalHref, type JournalSearchParams } from "@/lib/journal-filters";
@@ -26,12 +27,14 @@ export default async function TradesPage({ searchParams }: { searchParams: Promi
         <label>Missing label<select className={field} name="missing" defaultValue={filters.missing ?? ""}><option value="">No missing-label filter</option><option value="setup">Setup not specified</option><option value="symbol">Symbol not specified</option></select></label>
         <label>Direction<select className={field} name="direction" defaultValue={filters.direction ?? ""}><option value="">All directions</option><option value="LONG">Long</option><option value="SHORT">Short</option></select></label>
         <label>Status<select className={field} name="status" defaultValue={filters.status ?? ""}><option value="">All statuses</option><option value="open">Open / incomplete</option><option value="closed">Closed</option></select></label>
+        <label>Recorded outcome<select className={field} name="outcome" defaultValue={filters.outcome ?? ""}><option value="">All outcomes</option>{Object.entries(OUTCOME_LABELS).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label>Review<select className={field} name="review" defaultValue={filters.review ?? ""}><option value="">All reviews</option><option value="reviewed">Reviewed</option><option value="unreviewed">Unreviewed</option></select></label>
         <label>Plan adherence<select className={field} name="adherence" defaultValue={filters.adherence ?? ""}><option value="">All assessments</option>{Object.entries(PLAN_ADHERENCE_LABELS).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
         <label>Entry from (UTC)<input className={field} name="from" type="date" defaultValue={filters.from ?? ""} /></label>
         <label>Entry through (UTC)<input className={field} name="to" type="date" defaultValue={filters.to ?? ""} /></label>
         <div className="flex items-center gap-4 sm:col-span-2 lg:col-span-5"><button className="rounded bg-zinc-100 px-4 py-2 text-zinc-950">Apply filters</button><Link className="underline" href="/trades">Clear filters</Link></div>
       </form>
+      <p className="text-sm text-zinc-400">Outcome filters use closed trades only (both exit price and exit time). Wins, losses and break-even use the sign of recorded P&amp;L; missing P&amp;L is separate.</p>
       {!errors.length && <p className="text-sm text-zinc-400"><a className="underline" href={journalHref(filters).replace("/trades", "/trades/export")}>Export matching trades (CSV)</a> · All matching pages, up to {EXPORT_LIMIT} trades. Includes notes and reviews, UTC times and recorded account-currency amounts; no conversion. Formula-like text gets a protective apostrophe. CSV is not a database backup.</p>}
       {errors.length > 0 ? <div role="alert" className="rounded-xl border border-red-900 p-4 text-red-300"><p>Check your filters:</p><ul className="list-inside list-disc">{errors.map(error => <li key={error}>{error}</li>)}</ul></div> : <>
       {!result.trades.length ? <p className="rounded-xl border border-zinc-800 p-6">{page > 1 ? <>No trades on this page. <Link className="underline" href={journalHref(filters)}>Return to the first page</Link>.</> : active ? <>No trades match these filters. <Link className="underline" href="/trades">Clear filters</Link> to see your journal.</> : <>No trades yet. <Link className="underline" href="/trades/new">Log a trade</Link> to start your journal.</>}</p> : <div className="overflow-x-auto rounded-xl border border-zinc-800"><table className="w-full text-left text-sm">

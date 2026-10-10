@@ -4,11 +4,13 @@ import { trades, tradingAccounts } from "../db/schema";
 import type { JournalFilters } from "./journal-filters";
 import { tradeGroup, type TradeGroupDimension } from "./trade-group";
 
+import { outcomeCondition } from "./trade-outcome";
+
 function metricColumns() {
   const closed = sql`${trades.exitTime} is not null and ${trades.exitPrice} is not null`;
-  const measured = sql`${closed} and ${trades.pnl} is not null`;
-  const winning = sql`${measured} and ${trades.pnl} > 0`;
-  const losing = sql`${measured} and ${trades.pnl} < 0`;
+  const measured = outcomeCondition("measured");
+  const winning = outcomeCondition("win");
+  const losing = outcomeCondition("loss");
   const grossProfit = sql`coalesce(sum(${trades.pnl}) filter (where ${winning}), 0)`;
   const grossLoss = sql`coalesce(-sum(${trades.pnl}) filter (where ${losing}), 0)`;
   return {
