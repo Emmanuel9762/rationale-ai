@@ -644,3 +644,48 @@ reloading and confirming the same file must leave the count unchanged.
 
 Next useful checkpoint: import history with batch provenance so users can inspect
 the receipt and the trades created by each batch after leaving the preview page.
+
+## CP31 — inspect import history and the trades in a batch
+
+`/trades/imports` lists the owner's receipts, newest first, 25 per page with stable
+ID tie-breaking. Each row shows its import time, account, original saved count,
+and a link to the currently associated trades. The journal's import-batch filter
+combines with existing filters and survives Apply, pagination and CSV export.
+Clear filters restores the full journal. Invalid or repeated batch IDs produce
+filter errors (CSV returns 400); unknown or other-owner IDs return no records.
+
+Migration 0008 adds `trade_import_rows`, linking each trade to at most one receipt,
+with foreign keys and an import lookup index. New imports write receipt, trades
+and links in one statement. Edits preserve the link and batch views show current
+trade values. The CP30 fingerprint is unchanged, so retries still return their
+original receipt. History and batch queries verify ownership and matching account
+scope; malformed cross-account mappings cannot expose another owner's trades.
+
+Older receipts are not backfilled by guessing timestamps or matching values.
+Their original counts remain visible; absent links are explicitly unavailable.
+Retrying an older batch neither creates new trades nor manufactures missing links.
+The import success panel links to its batch and history, and successful imports
+invalidate the history page. Preview-only and current journal flows remain intact.
+
+Verified locally: 60 tests, lint, typecheck, production build, signed-out access
+and full-app HTTP checks. Coverage includes >25 trades and >25 receipts, stable
+pagination, exact journal/export membership, edits, owner isolation, malformed
+cross-account links, legacy receipts/replay, invalid IDs and whole-batch rollback
+when link creation fails. The CI browser gate follows a receipt into its journal,
+narrows the batch while retaining the filter/export URL, and verifies another
+signed-in user sees no history or trades from that batch. Live Neon timing and
+migration execution are separate acceptance checks.
+
+Local checkout must succeed before running migrations. A README checkout conflict
+leaves the old branch active; a subsequent seven-migration result verifies that
+old branch, not CP30/31. Preserve local README edits in a named stash, switch to
+`codex/cp31-import-history`, and inspect `git branch --show-current` before proceeding.
+Follow MIGRATIONS.md's disposable-copy rehearsal and intended database/Auth pairing.
+Stop the app, run db:migrate then db:verify; CP31 expects nine verified migrations
+and zero pending. No live migration, environment or dependency change was made.
+
+Acceptance: import a new valid CSV on a test account, select Import history, open
+its batch and verify counts, filters and exported membership. Edit one linked
+trade and verify it remains in that batch. CP31 is stacked on CP30 (PR #17).
+Next useful work: reconcile the pending PR stack and run local release acceptance
+before adding more features.

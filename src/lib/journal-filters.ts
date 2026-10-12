@@ -3,6 +3,7 @@ import type { TradeGroupDimension } from "./trade-group";
 
 export type JournalSearchParams = Record<string, string | string[] | undefined>;
 export type JournalFilters = {
+  import?: string;
   symbol?: string;
   setup?: string;
   missing?: "setup" | "symbol";
@@ -29,6 +30,9 @@ export function parseJournalFilters(params: JournalSearchParams) {
     return raw === undefined ? "" : label ? raw.replace(/^ +| +$/g, "") : raw.trim();
   };
   const filters: JournalFilters = {};
+  const batch = value("import");
+  if (batch && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(batch)) errors.push("Choose a valid import batch.");
+  else if (batch) filters.import = batch.toLowerCase();
   const symbol = value("symbol", true).toUpperCase();
   if (symbol.length > 20) errors.push("Symbol must be 20 characters or fewer.");
   else if (symbol) filters.symbol = symbol;
@@ -64,7 +68,7 @@ export function parseJournalFilters(params: JournalSearchParams) {
 
 export function journalHref(filters: JournalFilters, page = 1) {
   const params = new URLSearchParams();
-  for (const key of ["symbol", "setup", "missing", "direction", "status", "review", "adherence", "from", "to"] as const) {
+  for (const key of ["import", "symbol", "setup", "missing", "direction", "status", "review", "adherence", "from", "to"] as const) {
     if (filters[key]) params.set(key, filters[key]);
   }
   if (page > 1) params.set("page", String(page));

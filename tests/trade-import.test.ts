@@ -4,7 +4,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { eq } from "drizzle-orm";
-import { users, trades, tradeImports, tradingAccounts } from "../src/db/schema";
+import { users, trades, tradeImports, tradeImportRows, tradingAccounts } from "../src/db/schema";
 import { importOwnedCsv } from "../src/lib/trade-import";
 import { readFileSync } from "node:fs";
 
@@ -57,6 +57,10 @@ test('a mid-batch database failure rolls back every trade and its receipt; a los
     await assert.rejects(importOwnedCsv(db,owner.id,form()));
     assert.equal((await db.select().from(trades)).length,0);assert.equal((await db.select().from(tradeImports)).length,0);
     await client.exec('drop trigger reject_import on trades');
+    await client.exec("create function reject_import_links() returns trigger language plpgsql as $$ begin raise exception 'fixture link failure'; end $$; create trigger reject_links before insert on trade_import_rows for each row execute function reject_import_links();");
+    await assert.rejects(importOwnedCsv(db,owner.id,form()));
+    assert.equal((await db.select().from(trades)).length,0);assert.equal((await db.select().from(tradeImports)).length,0);assert.equal((await db.select().from(tradeImportRows)).length,0);
+    await client.exec('drop trigger reject_links on trade_import_rows');
     const lostReply = new Proxy(db,{get(target,key){
       if(key==='execute')return async(query: Parameters<typeof db.execute>[0])=>{await target.execute(query);throw new Error('lost response');};
       return Reflect.get(target,key);
@@ -65,6 +69,7 @@ test('a mid-batch database failure rolls back every trade and its receipt; a los
     assert.equal((await db.select().from(trades)).length,2);assert.equal((await db.select().from(tradeImports)).length,1);
     assert.equal((await importOwnedCsv(db,owner.id,form())).count,2);
     assert.equal((await db.select().from(trades)).length,2);
+    assert.equal((await db.select().from(tradeImportRows)).length,2);
     await migrate(db,{migrationsFolder:'./drizzle'});
   } finally {await client.close();}
 });

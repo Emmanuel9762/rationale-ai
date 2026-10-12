@@ -22,6 +22,11 @@ export function tradeRepository(database: Pick<typeof db, "select">) {
     if (through) through.setUTCDate(through.getUTCDate() + 1);
     return scoped().where(and(
       eq(tradingAccounts.userId, userId),
+      filters.import ? sql`exists (
+        select 1 from trade_import_rows r inner join trade_imports i on i.id = r.import_id
+        where r.trade_id = ${trades.id} and i.id = ${filters.import}::uuid
+          and i.user_id = ${userId}::uuid and i.account_id = ${trades.accountId}
+      )` : undefined,
       filters.symbol ? sql`${tradeGroup("symbol")} = ${filters.symbol.toUpperCase()}` : undefined,
       filters.setup ? sql`${tradeGroup("setup")} = ${filters.setup}` : undefined,
       filters.missing ? isNull(tradeGroup(filters.missing)) : undefined,

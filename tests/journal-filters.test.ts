@@ -18,7 +18,7 @@ test("journal URLs normalize symbols and retain filters across pagination", () =
 
 test("invalid and ambiguous filters are reported instead of silently broadening the journal", () => {
   for (const params of [
-    {adherence:"unknown"}, {adherence:["followed","partly"]}, {adherence:"toString"},
+    {import:"bad"}, {import:["a","b"]}, {adherence:"unknown"}, {adherence:["followed","partly"]}, {adherence:"toString"},
     {setup:"x".repeat(101)}, {setup:["A","B"]}, {missing:["setup","symbol"]},
     {missing:"other"}, {missing:"setup",setup:"Breakout"}, {missing:"symbol",symbol:"EURUSD"},
     {review:"invalid"}, {review:["reviewed","unreviewed"]}, {symbol:"x".repeat(21)}, {status:"all-users"}, {direction:"SIDEWAYS"},
@@ -58,4 +58,13 @@ test("page input stays bounded and URL encoding keeps symbol text out of other f
   const url = new URL(journalHref({symbol:"A&B=1"}),"https://example.test");
   assert.equal(url.searchParams.get("symbol"),"A&B=1");
   assert.equal(url.searchParams.has("B"),false);
+});
+
+test("batch filters validate UUIDs and survive filtering, pagination and export URLs", () => {
+  const id="ABCDEF01-0000-4000-8000-123456789012";
+  const parsed=parseJournalFilters({import:id,status:"closed"});
+  assert.deepEqual(parsed.errors,[]);assert.equal(parsed.filters.import,id.toLowerCase());
+  const url=new URL(journalHref(parsed.filters,2),"https://example.test");
+  assert.equal(url.searchParams.get("import"),id.toLowerCase());
+  assert.deepEqual(parseJournalFilters(Object.fromEntries(url.searchParams)).filters,parsed.filters);
 });
