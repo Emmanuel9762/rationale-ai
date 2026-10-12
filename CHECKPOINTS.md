@@ -722,3 +722,25 @@ and expect nine verified migrations with zero pending. If migrations are pending
 follow MIGRATIONS.md's disposable-copy rehearsal, migrate explicitly and rerun.
 Next priority: complete local acceptance and consolidate the reviewed PR stack
 before expanding features.
+
+## CP33 — inspect and export recorded outcomes
+
+The journal now offers Wins, Losses, Break-even, Closed with P&L and Closed without
+P&L. A shared SQL predicate keeps repository filters and performance metrics aligned:
+both exit fields must be present; incomplete legacy rows with numeric P&L never
+become measured results. SQL decimal comparisons retain exact zero/sign semantics.
+Outcome labels remain separate from SQL so client-side URL helpers do not import
+the database schema. Invalid/repeated outcomes and open-status conflicts fail
+validation rather than broadening results. Batch/group/date/review filters compose
+before pagination; CSV export uses the same predicates and owner scope.
+
+Acceptance: choose Wins on Trade history, apply, paginate and export. Apply within
+an imported batch and confirm the batch stays selected. Losses and break-even show
+only closed records of that sign; closed missing P&L remains distinct from zero.
+No schema, dependency, environment or live database changes. CP33 follows CP32.
+
+Verified locally: all 66 tests, lint, typecheck, fresh production build and full-app
+HTTP isolation pass, including outcome validation, exact sign/zero/missing values,
+legacy incomplete rows, >25 matches, export parity, owner and batch scope. A corrupt
+Turbopack cache was moved aside before the successful build. Browser CI additionally
+selects Wins inside an imported batch and verifies its URL/export selection.

@@ -69,3 +69,11 @@ The read-only gate requires an exact, clean checkout before database verificatio
 expect nine migrations and zero pending. It never applies migrations. See
 [RELEASE.md](RELEASE.md) for Fish commands, preserving README edits, environment
 pairing and browser acceptance. No schema or dependency change in CP32.
+
+## Recorded outcome filters (CP33)
+
+Trade history can filter wins, losses, break-even, closed trades with P&L, or
+closed trades missing P&L. Outcomes require both an exit price and exit time and
+use recorded P&L rather than calculating profit from prices. The selection combines
+with batch, group, date and review filters and survives pagination and CSV export.
+Open status plus an outcome is rejected as conflicting. No migration is required.
