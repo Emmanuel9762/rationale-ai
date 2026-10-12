@@ -241,8 +241,16 @@ try {
   const queuePath='/trades?status=closed&review=unreviewed';
   const queueHtml=await(await a.request(queuePath)).text();assert.match(queueHtml,/QUEUE_A/);assert.ok(!queueHtml.includes('ONLY_A</a>'));
   assert.ok(!(await(await b.request(queuePath)).text()).includes('QUEUE_A'));
+  const followUpBefore=await(await a.request('/')).text();
+  assert.match(followUpBefore,/Closed trades awaiting review: 1/);
+  assert.match(followUpBefore,/Closed trades missing P&amp;L: 1/);
+  assert.match(await(await b.request('/')).text(),/Closed trades awaiting review: 0/);
   const queueSaved=await a.submit('/trades/'+queueRow.id,{planAdherence:'followed',reviewWentWell:'Queue complete'});assert.match(await queueSaved.text(),/Review saved/);
   assert.match(await(await a.request(queuePath)).text(),/No trades match these filters/);
+  const followUpAfter=await(await a.request('/')).text();
+  assert.match(followUpAfter,/Closed trades awaiting review: 0/);
+  assert.match(followUpAfter,/Closed trades missing P&amp;L: 1/);
+
   assert.match(await(await a.request('/trades?review=reviewed')).text(),/QUEUE_A/);
   assert.match(await(await a.request('/trades?review=invalid')).text(),/Check your filters/);
   console.log('Review queue HTTP: closed/unreviewed scope, save removes row, owner isolation and invalid filters passed.');
@@ -493,6 +501,20 @@ try {
       const download=await downloadEvent;assert.equal(download.suggestedFilename(),'rationale-trades.csv');
       const browserCsv=await readFile(await download.path(),'utf8');assert.ok(browserCsv.includes('ONLY_A'));assert.ok(!browserCsv.includes('ONLY_B'));
 
+      for (const [name,query] of [
+        [/^Open \/ incomplete trades:/,'status=open'],
+        [/^Closed trades missing P&L:/,'outcome=missing'],
+        [/^Closed trades awaiting review:/,'status=closed&review=unreviewed'],
+      ]) {
+        await pages[0].goto(base.replace('127.0.0.1','localhost')+'/');
+        const card=pages[0].getByRole('region',{name:'Journal follow-up',exact:true}).getByRole('link',{name});
+        assert.equal(await card.getAttribute('href'),'/trades?'+query);
+        await card.click();
+        await pages[0].waitForURL(url=>url.pathname==='/trades'&&url.search==='?'+query);
+      }
+      await pages[1].goto(base.replace('127.0.0.1','localhost')+'/');
+      await pages[1].getByRole('link',{name:'Closed trades awaiting review: 0',exact:true}).click();
+      await pages[1].getByText('No trades match these filters.',{exact:false}).waitFor();
       console.log('Two isolated Chromium contexts: signup, trade creation, refresh and cross-user denial passed.');
     } finally {await browser.close();}
   }

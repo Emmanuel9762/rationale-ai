@@ -48,10 +48,13 @@ function summarize(result: MetricRow) {
 }
 
 export async function tradeMetrics(database: Pick<typeof db, "select">, userId: string) {
-  const [result] = await database.select(metricColumns()).from(trades)
+  const [result] = await database.select({
+    ...metricColumns(),
+    awaitingReview: sql<number>`count(*) filter (where ${trades.exitTime} is not null and ${trades.exitPrice} is not null and ${trades.reviewedAt} is null)::int`,
+  }).from(trades)
     .innerJoin(tradingAccounts, eq(trades.accountId, tradingAccounts.id))
     .where(eq(tradingAccounts.userId, userId));
-  return summarize(result);
+  return { ...summarize(result), awaitingReview: result.awaitingReview };
 }
 
 export async function tradeBreakdown(database: Pick<typeof db, "select">, userId: string, by: TradeGroupDimension, period: Pick<JournalFilters, "from" | "to"> = {}) {

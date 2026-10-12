@@ -94,3 +94,12 @@ CP26–34 are merged on `main`. Fetch, switch successfully and fast-forward befo
 running `release:verify -- --expect-ref origin/main`; see RELEASE.md for the full
 Fish sequence and local acceptance. The schema still requires nine migrations.
 Consolidated CI does not replace testing your own database/Auth pairing locally.
+
+## Journal follow-up (CP37)
+
+The dashboard links to all open/incomplete trades, closed trades missing P&L and
+closed trades awaiting review. Counts cover all of your accounts and all dates,
+including trades beyond the first journal page. A closed trade can appear in both
+missing-P&L and awaiting-review queues; counts should not be added together. Open
+trades are not necessarily errors. Saving a review updates the review count while
+leaving missing P&L unchanged. No new migration is required.

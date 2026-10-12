@@ -11,7 +11,7 @@ test("dashboard aggregates persisted results with ownership and lifecycle exclus
   try {
     await migrate(db, { migrationsFolder: "./drizzle" });
     const empty = await tradeMetrics(db, "00000000-0000-4000-8000-000000000000");
-    assert.equal(empty.total, 0); assert.equal(empty.winRate, "—"); assert.equal(empty.profitFactor, "—");
+    assert.equal(empty.awaitingReview, 0); assert.equal(empty.total, 0); assert.equal(empty.winRate, "—"); assert.equal(empty.profitFactor, "—");
     assert.equal(empty.averagePnl, null); assert.equal(empty.averageWin, null); assert.equal(empty.averageLoss, null);
     const [user] = await db.insert(users).values({ email: "one@test.local" }).returning();
     const [account] = await db.insert(tradingAccounts).values({ userId: user.id, name: "Test", balance: "0" }).returning();

@@ -18,6 +18,7 @@ export async function saveReview(id: string, _previous: TradeFormState, data: Fo
   } catch (error) {
     return { revision, values, conflict: error instanceof TradeConflictError, error: error instanceof ReviewInputError || error instanceof TradeInputError || error instanceof TradeConflictError ? error.message : "Could not confirm the review. Copy your changes and reload the trade before retrying." };
   }
+  revalidatePath("/");
   revalidatePath("/trades");
   revalidatePath("/performance");
   revalidatePath(`/trades/${id}`);
