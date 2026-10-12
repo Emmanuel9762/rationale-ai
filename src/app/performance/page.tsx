@@ -22,10 +22,9 @@ function BreakdownTable({ title, dimension, rows, by, period }: { title: string;
         </tr></thead>
         <tbody>{rows.map(row => <tr key={row.group === null ? "missing" : `group:${row.group}`} className="border-t border-zinc-800">
           <th scope="row" className="max-w-xs break-words p-4 font-medium"><Link className="underline" href={breakdownJournalHref(by, row.group, period)} aria-label={`View trades for ${by}: ${label(row.group) ?? "Not specified (missing label)"}`}>{label(row.group) ?? <span className="italic text-zinc-400">Not specified</span>}</Link></th>
-          <td className="p-4 tabular-nums">{row.total}</td>
-          <td className="p-4 tabular-nums">{row.open}</td>
-          <td className="p-4 tabular-nums">{row.missingPnl}</td>
-          <td className="p-4 font-semibold tabular-nums">{row.measured}</td>
+          {([['total', 'all trades'], ['open', 'open or incomplete trades'], ['missingPnl', 'closed trades without P&L'], ['measured', 'closed trades with P&L']] as const).map(([sample, description]) => <td key={sample} className={`p-4 tabular-nums ${sample === "measured" ? "font-semibold" : ""}`}>
+            <Link className="underline" href={breakdownJournalHref(by, row.group, period, sample)} aria-label={`View ${row[sample]} ${description} for ${by}: ${label(row.group) ?? "Not specified (missing label)"}`}>{row[sample]}</Link>
+          </td>)}
           <td className="whitespace-nowrap p-4 tabular-nums">{row.winRate}</td>
           <td className="whitespace-nowrap p-4 tabular-nums">{row.measured ? formatPnl(row.pnl) : "—"}</td>
           {[row.averagePnl, row.averageWin, row.averageLoss].map((value, index) => <td key={index} className="whitespace-nowrap p-4 tabular-nums">{value === null ? "—" : formatPnl(value)}</td>)}
@@ -67,7 +66,7 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
         <p>Compare sample sizes before drawing conclusions: a few wins do not establish a reliable pattern. Groups are not ranked by performance.</p>
         <p>P&L is shown as recorded, with no currency conversion. All included accounts must use the same currency. Dates include trades entered on the selected UTC days, even if they closed later. Blank bounds are unrestricted. Other history filters do not apply here.</p>
         <p>Setup labels are trimmed but keep their capitalization. Symbols are grouped without regard to case; missing labels appear as <em>Not specified</em>.</p>
-        <p>Select a group to inspect its trades for these entry dates. The journal includes every trade counted in Total trades, including open trades and missing P&L.</p>
+        <p>Select a group or Total trades to inspect all its trades for these entry dates. Select an Open, Closed without P&L, or Closed with P&L count to inspect that exact subset. Counts reflect current values; later trade edits can change the results.</p>
         <p>Plan adherence reflects your latest saved self-assessment, including reviews of open trades. Unreviewed trades are separate from reviewed trades without a valid assessment. Later trade edits do not clear a review. These comparisons describe recorded outcomes; they do not establish that adherence caused a result.</p>
       </div>
       {errors.length ? <div role="alert" className="rounded-xl border border-red-900 p-5"><p>Check your dates.</p><ul>{errors.map(error => <li key={error}>{error}</li>)}</ul></div> : filtered && bySetup.length === 0 ? <p>No trades match these entry dates. Change the dates or choose All time.</p> : bySetup.length === 0 ? <p className="rounded-xl border border-zinc-800 p-6">No trades yet. <Link className="underline" href="/trades/new">Log a trade</Link> to start building your performance history.</p> : <>

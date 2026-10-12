@@ -6,7 +6,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { users, tradingAccounts, trades } from "../src/db/schema";
 import { tradeRepository } from "../src/lib/trade-repository";
 import { tradeBreakdown } from "../src/lib/trade-metrics";
-import { breakdownJournalHref, parseJournalFilters } from "../src/lib/journal-filters";
+import { breakdownJournalHref, parseJournalFilters, type BreakdownSample } from "../src/lib/journal-filters";
 
 test("journal combines filters before pagination and preserves ownership and UTC day boundaries", async () => {
   const client = new PGlite(); const db = drizzle(client);
@@ -58,12 +58,26 @@ test("drill-down journal and export match every performance group before paginat
     const matches = await db.insert(trades).values(Array.from({length:26},(_,i)=>({...base,symbol:i%2?" eurusd ":"EURUSD",setup:i%2?" Breakout ":"Breakout"}))).returning();
     await db.insert(trades).values([
       {...base,setup:null,symbol:""}, {...base,setup:"",symbol:"   "}, {...base,setup:"   ",symbol:"OTHER"},
+      {...base,setup:"Samples",exitPrice:"2",exitTime:new Date("2026-01-03T00:00:00Z"),pnl:"2",reviewedAt:new Date(),planAdherence:"followed"},
+      {...base,setup:"Samples",exitPrice:"2",exitTime:new Date("2026-01-03T00:00:00Z"),pnl:"-1"},
+      {...base,setup:"Samples",exitPrice:"2",exitTime:new Date("2026-01-03T00:00:00Z"),pnl:"0"},
+      {...base,setup:"Samples",exitPrice:"2",exitTime:new Date("2026-01-03T00:00:00Z"),pnl:null},
       {...base,setup:"Not specified"}, {...base,setup:"breakout"}, {...base,setup:"A&B=%_"}, {...base,setup:"\tLABEL\t",symbol:"\tLABEL\t"},
       {...base,entryTime:new Date("2026-01-03T00:00:00Z")}, {...base,accountId:accounts[1].id},
     ]);
     const repo=tradeRepository(db), period={from:"2026-01-02",to:"2026-01-02"};
-    for (const by of ["setup","symbol"] as const) {
+    for (const by of ["setup","symbol","adherence"] as const) {
       for (const group of await tradeBreakdown(db,owners[0].id,by,period)) {
+        for (const sample of ["total","open","missingPnl","measured"] as BreakdownSample[]) {
+          const sampleUrl=new URL(breakdownJournalHref(by,group.group,period,sample),"https://example.test");
+          const parsed=parseJournalFilters(Object.fromEntries(sampleUrl.searchParams));
+          assert.deepEqual(parsed.errors,[]);
+          const sampleRows=await repo.exportRows(owners[0].id,parsed.filters);
+          assert.equal(sampleRows.length,group[sample],`${by}/${group.group}/${sample}`);
+          const first=await repo.list(owners[0].id,1,parsed.filters),second=await repo.list(owners[0].id,2,parsed.filters);
+          assert.deepEqual([...first.trades,...second.trades].map(t=>t.id),sampleRows.map(t=>t.id));
+          assert.ok(sampleRows.every(t=>t.accountId===accounts[0].id));
+        }
         const url=new URL(breakdownJournalHref(by,group.group,period),"https://example.test");
         const {filters,errors}=parseJournalFilters(Object.fromEntries(url.searchParams));
         assert.deepEqual(errors,[]);
