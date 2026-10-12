@@ -3,7 +3,9 @@
 Sign in and open **Trade history → Preview CSV** (`/trades/preview`). Download the
 mock file on that page, select it, and press **Preview CSV**. Expect **36 records:
 30 valid, 6 invalid, 2 repeated**. The last six records deliberately test validation
-failures; remove them for a valid-only file. Quoted multiline notes count as one
+failures. For successful import testing, download the **import-ready CSV** instead:
+**30 valid, 0 invalid, 2 repeated**, with 5 open trades, 4 closed without P&L and
+21 closed with P&L. Quoted multiline notes count as one
 CSV record. See CP29 in [CHECKPOINTS.md](CHECKPOINTS.md) for individual cases.
 
 Preview stays in your browser. Once every record is valid, **Confirm import**
@@ -14,8 +16,9 @@ or overlapping files are not deduplicated. Imported reviews are timestamped at
 import time. No currency conversion or balance adjustment is performed.
 
 CP31 requires migrations through `0008_import_trade_links`. Follow [MIGRATIONS.md](MIGRATIONS.md)
-before starting the updated app. The sample's final six invalid records must be
-removed before importing; its two repeated records can be kept intentionally.
+before starting the updated app. The import-ready sample preserves the original
+validation sample's valid records in the same order, including its two intentional
+repeats. If you already imported that valid subset, it returns the same receipt.
 Use a test account for mock data. Preview alone never changes the journal.
 
 **Import history** lists your saved receipts with original counts and links to

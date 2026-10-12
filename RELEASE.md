@@ -74,7 +74,9 @@ Use http://localhost:3000, not the LAN IP or 127.0.0.1.
    password succeeds, and reopening/reusing the reset link is rejected on submit.
    Your journal must remain unchanged. Never share reset URLs, passwords or codes.
 
-5. On a test account, preview a valid CSV, confirm it and open Import history.
+5. On a test account, download the import-ready CSV from Preview CSV. Expect
+   30 valid records, zero errors and two repeats. Acknowledge both confirmation
+   choices, import it and open Import history; a new batch contains 30 trades.
    Follow the new batch, narrow the journal and export it. Replaying the same CSV
    must not add trades. Edit a linked trade and confirm it remains in the batch.
    Older CP30 receipts can show unavailable links; do not infer their membership.

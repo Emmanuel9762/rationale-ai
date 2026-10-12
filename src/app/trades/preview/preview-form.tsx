@@ -43,7 +43,12 @@ export default function CsvPreviewForm() {
     });
   }
   return <div className="space-y-6">
-    <p className="text-sm text-zinc-300"><a className="underline" href="/samples/rationaleai-mock-trades.csv" download>Download mock trade CSV</a> — 36 synthetic records: expect 30 valid, 6 deliberately invalid and 2 repeated. Records 32–37 test quantity, closing fields, dates, review choice and decimal precision. Remove those six records for a valid-only file.</p>
+    <section aria-label="Sample CSV files" className="space-y-3 rounded-xl border border-zinc-800 p-5 text-sm text-zinc-300">
+      <h2 className="font-semibold text-zinc-100">Test with synthetic trades</h2>
+      <p><a className="underline" href="/samples/rationaleai-import-ready.csv" download>Download import-ready CSV</a> — 30 valid records, no errors and 2 intentional repeats. Includes 5 open trades, 4 closed without P&amp;L and 21 closed with P&amp;L. Use a test account; confirming saves every copy after repeat acknowledgement.</p>
+      <p><a className="underline" href="/samples/rationaleai-mock-trades.csv" download>Download mock trade CSV</a> — validation sample: 36 records, 30 valid, 6 deliberately invalid and 2 repeated. Records 32–37 test quantity, closing fields, dates, review choice and decimal precision. This file cannot be confirmed unchanged.</p>
+      <p>The import-ready file contains the same valid records as the validation sample, in the same order. If you already imported that valid subset unchanged, confirming it returns the existing receipt. Preview alone saves nothing.</p>
+    </section>
     <form onSubmit={preview} onReset={clear} className="space-y-4 rounded-xl border border-zinc-800 p-5">
       <label className="block">Trade CSV<input className="mt-2 block w-full rounded border border-zinc-700 p-3" type="file" disabled={isImporting} name="csv" accept=".csv,text/csv" required onChange={clear} aria-describedby="csv-limits" /></label>
       <p id="csv-limits" className="text-sm text-zinc-400">UTF-8, comma-separated, up to 256 KiB and {CSV_MAX_ROWS} trades. Preview reads the file in this browser. Only confirming an import sends its contents to the server. JavaScript is required.</p>

@@ -73,3 +73,25 @@ test('a mid-batch database failure rolls back every trade and its receipt; a los
     await migrate(db,{migrationsFolder:'./drizzle'});
   } finally {await client.close();}
 });
+
+test('import-ready download requires repeat acknowledgement and replays without adding trades or links',async()=>{
+  const client=new PGlite(),db=drizzle(client);
+  try {
+    await migrate(db,{migrationsFolder:'./drizzle'});
+    const [owner]=await db.insert(users).values({email:'sample-import@test.local'}).returning();
+    const source=readFileSync('public/samples/rationaleai-import-ready.csv','utf8');
+    await assert.rejects(importOwnedCsv(db,owner.id,form(source,'yes','no')));
+    assert.equal((await db.select().from(tradingAccounts)).length,0);
+    const receipt=await importOwnedCsv(db,owner.id,form(source));
+    assert.equal(receipt.count,30);
+    assert.deepEqual(await importOwnedCsv(db,owner.id,form(source)),receipt);
+    const saved=await db.select().from(trades);
+    assert.equal(saved.length,30);
+    assert.equal(saved.filter(t=>!t.exitTime).length,5);
+    assert.equal(saved.filter(t=>t.exitTime&&t.pnl===null).length,4);
+    assert.equal(saved.filter(t=>t.pnl!==null).length,21);
+    assert.equal((await db.select().from(tradeImports)).length,1);
+    assert.equal((await db.select().from(tradeImportRows)).length,30);
+    assert.equal((await db.select().from(tradingAccounts))[0].balance,'0.00');
+  } finally {await client.close();}
+});

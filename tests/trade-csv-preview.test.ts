@@ -78,3 +78,11 @@ test("downloadable mock dataset has the advertised cases and counts", () => {
   assert.equal(r.rows.filter(row=>row.trade.pnl!==null).length,21);
   assert.ok(r.rows.some(row=>row.trade.notes?.includes('\n')));
 });
+
+test("import-ready sample preserves the validation sample's exact valid records and repeats", () => {
+  const source=previewTradeCsv(readFileSync('public/samples/rationaleai-mock-trades.csv','utf8'));
+  const ready=previewTradeCsv(readFileSync('public/samples/rationaleai-import-ready.csv','utf8'));
+  assert.equal(ready.total,30);assert.deepEqual(ready.errors,[]);
+  assert.deepEqual(ready.rows,source.rows);
+  assert.equal(ready.rows.filter(row=>row.duplicateOf!==undefined).length,2);
+});

@@ -786,3 +786,26 @@ this checkpoint does not claim deployment or verification on the user's laptop.
 
 Next: run RELEASE.md's local acceptance on the consolidated main commit and resolve
 any observed failures before choosing another product feature.
+
+
+## CP36 — an import-ready fixture for local acceptance
+
+Preview CSV now offers two clearly described downloads. The existing 36-record
+validation fixture remains unchanged. The new rationaleai-import-ready.csv
+preserves its 30 valid records, order, multiline notes and two intentional repeats.
+Expected totals: five open trades, four closed without P&L, 21 closed with P&L.
+No manual record removal is needed. Existing normalized batch fingerprints remain
+unchanged, so a previously imported identical valid subset returns its old receipt.
+Use a test account: synthetic records are saved only after explicit confirmation
+and repeat acknowledgement. Preview still performs no writes.
+
+Tests compare the parsed fixtures, require repeat acknowledgement before account
+creation, and verify saving/replaying leaves 30 trades, 30 links, one receipt and
+unchanged balance. Browser acceptance downloads the served file, previews the
+advertised totals, finds the confirmation form and verifies no preview writes.
+README and RELEASE use the new file for successful local-import acceptance.
+No parser/import behavior, schema, dependency, environment or live database change.
+CP35 laptop acceptance remains pending; this checkpoint makes it easier to perform.
+
+Verified locally: all 68 tests, lint, typecheck, production build and diff checks
+pass. Full browser verification is provided by the checkpoint's GitHub CI run.
