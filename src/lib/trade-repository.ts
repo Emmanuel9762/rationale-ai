@@ -3,6 +3,7 @@ import type { db } from "../db";
 import { trades, tradingAccounts } from "../db/schema";
 
 import type { JournalFilters } from "./journal-filters";
+import { tradeGroup } from "./trade-group";
 
 export const PAGE_SIZE = 25;
 export const EXPORT_LIMIT = 2000;
@@ -21,7 +22,9 @@ export function tradeRepository(database: Pick<typeof db, "select">) {
     if (through) through.setUTCDate(through.getUTCDate() + 1);
     return scoped().where(and(
       eq(tradingAccounts.userId, userId),
-      filters.symbol ? sql`upper(${trades.symbol}) = ${filters.symbol.toUpperCase()}` : undefined,
+      filters.symbol ? sql`${tradeGroup("symbol")} = ${filters.symbol.toUpperCase()}` : undefined,
+      filters.setup ? sql`${tradeGroup("setup")} = ${filters.setup}` : undefined,
+      filters.missing ? isNull(tradeGroup(filters.missing)) : undefined,
       filters.direction ? eq(trades.direction, filters.direction) : undefined,
       filters.status === "closed" ? and(isNotNull(trades.exitTime), isNotNull(trades.exitPrice)) : undefined,
       filters.status === "open" ? or(isNull(trades.exitTime), isNull(trades.exitPrice)) : undefined,

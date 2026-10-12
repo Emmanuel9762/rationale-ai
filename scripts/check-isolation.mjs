@@ -194,6 +194,17 @@ try {
   const datedPerformance=await(await a.request('/performance?from=2026-01-01&to=2026-01-01')).text();
   assert.match(datedPerformance,/OWNER_SETUP/);assert.match(datedPerformance,/12\.34/);assert.ok(!datedPerformance.includes('ONLY_B'));
   assert.match(datedPerformance,/href="\/trades\?from=2026-01-01&amp;to=2026-01-01"/);
+  assert.match(datedPerformance,/href="\/trades\?setup=OWNER_SETUP&amp;from=2026-01-01&amp;to=2026-01-01"/);
+  const drillQuery='setup=OWNER_SETUP&from=2026-01-01&to=2026-01-01';
+  const drilled=await(await a.request('/trades?'+drillQuery)).text();
+  assert.ok(drilled.includes(`href="${tradePath}"`));assert.match(drilled,/name="setup"[^>]*value="OWNER_SETUP"/);
+  assert.match(drilled,/\/trades\/export\?setup=OWNER_SETUP&amp;from=2026-01-01&amp;to=2026-01-01/);
+  assert.match(await(await b.request('/trades?'+drillQuery)).text(),/No trades match these filters/);
+  assert.ok(!(await(await a.request('/trades?missing=setup')).text()).includes(`href="${tradePath}"`));
+  for(const query of ['setup=A&setup=B','missing=setup&setup=OWNER_SETUP','missing=unknown']) {
+    assert.match(await(await a.request('/trades?'+query)).text(),/Check your filters/);
+    assert.equal((await a.request('/trades/export?'+query)).status,400);
+  }
   assert.match(await(await a.request('/performance?from=2027-01-01')).text(),/No trades match these entry dates/);
   for(const query of ['from=2026-02-30','from=2026-02-01&to=2026-01-01','from=2026-01-01&from=2026-01-02']) {
     const html=await(await a.request('/performance?'+query)).text();assert.match(html,/Check your dates/);assert.ok(!html.includes('<table'));
@@ -239,6 +250,7 @@ try {
         await page.getByLabel('Name',{exact:true}).fill('Browser '+i);await page.getByLabel('Email',{exact:true}).fill(`browser${i}@example.test`);await page.getByLabel('Password',{exact:true}).fill('fixture-password');await page.getByRole('button',{name:'Create account',exact:true}).click();await page.waitForURL('**/account');
       }
       await pages[0].goto(base.replace('127.0.0.1','localhost')+'/trades/new');
+      await pages[0].locator('[name="setup"]').fill('BROWSER_SETUP');
       for(const [name,value]of Object.entries(input)) {const field=pages[0].locator(`[name="${name}"]`);if(name==='direction')await field.selectOption(value);else await field.fill(value);}
       const browserSubmissionKey=await pages[0].locator('[name="submissionKey"]').inputValue();
       await pages[0].locator('[name="pnl"]').fill('1');
@@ -281,6 +293,22 @@ try {
       for(const label of ['Average P&L','Average win','Average loss','Profit factor']) await symbolTable.getByRole('columnheader',{name:label,exact:true}).waitFor();
       const openOutcomeCells=await symbolTable.getByRole('row').filter({hasText:'ONLY_A'}).getByRole('cell').allTextContents();
       assert.deepEqual(openOutcomeCells.slice(-4),['—','—','—','—']);
+      await pages[0].getByLabel('From entry date (UTC)',{exact:true}).fill('2026-01-01');
+      await pages[0].getByLabel('Through entry date (UTC)',{exact:true}).fill('2026-01-01');
+      await pages[0].getByRole('button',{name:'Apply dates',exact:true}).click();
+      await pages[0].waitForURL(/\/performance\?.*from=2026-01-01/);
+      await pages[0].getByRole('link',{name:'View trades for setup: BROWSER_SETUP',exact:true}).click();
+      await pages[0].getByRole('heading',{name:'Trade history',exact:true}).waitFor();
+      assert.equal(new URL(pages[0].url()).searchParams.get('setup'),'BROWSER_SETUP');
+      assert.equal(await pages[0].locator('[name="from"]').inputValue(),'2026-01-01');
+      assert.equal(await pages[0].locator('[name="to"]').inputValue(),'2026-01-01');
+      assert.equal(await pages[0].locator('[name="setup"]').inputValue(),'BROWSER_SETUP');
+      assert.ok((await pages[0].getByRole('link',{name:'Export matching trades (CSV)',exact:true}).getAttribute('href')).includes('setup=BROWSER_SETUP'));
+      await pages[0].getByRole('link',{name:'Clear filters',exact:true}).click();
+      await pages[0].waitForURL('**/trades');
+      assert.equal(await pages[0].locator('[name="setup"]').inputValue(),'');
+      await pages[0].getByRole('link',{name:'Performance',exact:true}).click();
+      await pages[0].getByRole('heading',{name:'Performance breakdowns',exact:true}).waitFor();
       await pages[0].getByLabel('From entry date (UTC)',{exact:true}).fill('2027-01-01');
       await pages[0].getByRole('button',{name:'Apply dates',exact:true}).click();
       await pages[0].getByText('No trades match these entry dates.',{exact:false}).waitFor();

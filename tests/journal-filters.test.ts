@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseJournalFilters, journalHref } from "../src/lib/journal-filters";
+import { breakdownJournalHref, parseJournalFilters, journalHref } from "../src/lib/journal-filters";
 
 test("journal URLs normalize symbols and retain filters across pagination", () => {
   const { filters, page, errors } = parseJournalFilters({symbol:" eur/usd ",direction:"SHORT",status:"closed",review:"unreviewed",from:"2024-02-29",to:"2024-03-01",page:"2"});
@@ -17,12 +17,29 @@ test("journal URLs normalize symbols and retain filters across pagination", () =
 
 test("invalid and ambiguous filters are reported instead of silently broadening the journal", () => {
   for (const params of [
+    {setup:"x".repeat(101)}, {setup:["A","B"]}, {missing:["setup","symbol"]},
+    {missing:"other"}, {missing:"setup",setup:"Breakout"}, {missing:"symbol",symbol:"EURUSD"},
     {review:"invalid"}, {review:["reviewed","unreviewed"]}, {symbol:"x".repeat(21)}, {status:"all-users"}, {direction:"SIDEWAYS"},
     {from:"2026-02-29"}, {to:"2026-04-31"}, {from:"0000-01-01"},
     {from:"2026-02-02",to:"2026-02-01"}, {symbol:["A","B"]},
     {status:["open","closed"]}, {page:["1","2"]},
   ]) assert.ok(parseJournalFilters(params).errors.length > 0);
   assert.equal(parseJournalFilters({from:"2024-02-29",to:"2024-02-29"}).errors.length,0);
+});
+
+test("breakdown links round-trip literal and missing labels with dates and pagination", () => {
+  const period = {from:"2026-01-01",to:"2026-01-31"};
+  for (const by of ["setup","symbol"] as const) {
+    for (const group of [null,"Not specified","A&B=%_","\tLABEL\t"]) {
+      const url = new URL(breakdownJournalHref(by,group,period),"https://example.test");
+      const parsed = parseJournalFilters(Object.fromEntries(url.searchParams));
+      assert.deepEqual(parsed.errors,[]);
+      assert.deepEqual(parsed.filters,{...period,...(group === null ? {missing:by} : {[by]:by === "symbol" ? group.toUpperCase() : group})});
+      const next = new URL(journalHref(parsed.filters,2),url);
+      assert.deepEqual(parseJournalFilters(Object.fromEntries(next.searchParams)).filters,parsed.filters);
+      assert.equal(url.searchParams.has("page"),false);
+    }
+  }
 });
 
 test("page input stays bounded and URL encoding keeps symbol text out of other filters", () => {

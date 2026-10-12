@@ -3,12 +3,12 @@ import { db } from "@/db";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import { formatPnl, tradeBreakdown } from "@/lib/trade-metrics";
 
-import { journalHref, parseJournalFilters, type JournalSearchParams } from "@/lib/journal-filters";
+import { breakdownJournalHref, journalHref, parseJournalFilters, type JournalFilters, type JournalSearchParams } from "@/lib/journal-filters";
 
 export const dynamic = "force-dynamic";
 type Breakdown = Awaited<ReturnType<typeof tradeBreakdown>>;
 
-function BreakdownTable({ title, dimension, rows }: { title: string; dimension: string; rows: Breakdown }) {
+function BreakdownTable({ title, dimension, rows, by, period }: { title: string; dimension: string; rows: Breakdown; by: "setup" | "symbol"; period: Pick<JournalFilters, "from" | "to"> }) {
   return <section className="space-y-3" aria-label={title}>
     <h2 className="text-xl font-semibold">{title}</h2>
     <div className="overflow-x-auto rounded-xl border border-zinc-800">
@@ -18,7 +18,7 @@ function BreakdownTable({ title, dimension, rows }: { title: string; dimension: 
           {[dimension, "Total trades", "Open / incomplete", "Closed without P&L", "Closed with P&L (sample)", "Win rate", "Recorded P&L", "Average P&L", "Average win", "Average loss", "Profit factor"].map(label => <th key={label} scope="col" className="p-4">{label}</th>)}
         </tr></thead>
         <tbody>{rows.map(row => <tr key={row.group === null ? "missing" : `group:${row.group}`} className="border-t border-zinc-800">
-          <th scope="row" className="max-w-xs break-words p-4 font-medium">{row.group ?? <span className="italic text-zinc-400">Not specified</span>}</th>
+          <th scope="row" className="max-w-xs break-words p-4 font-medium"><Link className="underline" href={breakdownJournalHref(by, row.group, period)} aria-label={`View trades for ${by}: ${row.group ?? "Not specified (missing label)"}`}>{row.group ?? <span className="italic text-zinc-400">Not specified</span>}</Link></th>
           <td className="p-4 tabular-nums">{row.total}</td>
           <td className="p-4 tabular-nums">{row.open}</td>
           <td className="p-4 tabular-nums">{row.missingPnl}</td>
@@ -63,10 +63,11 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
         <p>Compare sample sizes before drawing conclusions: a few wins do not establish a reliable pattern. Groups are listed alphabetically, not ranked.</p>
         <p>P&L is shown as recorded, with no currency conversion. All included accounts must use the same currency. Dates include trades entered on the selected UTC days, even if they closed later. Blank bounds are unrestricted. Other history filters do not apply here.</p>
         <p>Setup labels are trimmed but keep their capitalization. Symbols are grouped without regard to case; missing labels appear as <em>Not specified</em>.</p>
+        <p>Select a setup or symbol to inspect its trades for these entry dates. The journal includes every trade counted in Total trades, including open trades and missing P&L.</p>
       </div>
       {errors.length ? <div role="alert" className="rounded-xl border border-red-900 p-5"><p>Check your dates.</p><ul>{errors.map(error => <li key={error}>{error}</li>)}</ul></div> : filtered && bySetup.length === 0 ? <p>No trades match these entry dates. Change the dates or choose All time.</p> : bySetup.length === 0 ? <p className="rounded-xl border border-zinc-800 p-6">No trades yet. <Link className="underline" href="/trades/new">Log a trade</Link> to start building your performance history.</p> : <>
-        <BreakdownTable title="By setup" dimension="Setup" rows={bySetup}/>
-        <BreakdownTable title="By symbol" dimension="Symbol" rows={bySymbol}/>
+        <BreakdownTable title="By setup" dimension="Setup" rows={bySetup} by="setup" period={period}/>
+        <BreakdownTable title="By symbol" dimension="Symbol" rows={bySymbol} by="symbol" period={period}/>
       </>}
     </div>
   </main>;

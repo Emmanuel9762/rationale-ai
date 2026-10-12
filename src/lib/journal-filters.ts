@@ -1,6 +1,8 @@
 export type JournalSearchParams = Record<string, string | string[] | undefined>;
 export type JournalFilters = {
   symbol?: string;
+  setup?: string;
+  missing?: "setup" | "symbol";
   direction?: "LONG" | "SHORT";
   status?: "open" | "closed";
   review?: "reviewed" | "unreviewed";
@@ -16,15 +18,23 @@ function validDate(value: string) {
 
 export function parseJournalFilters(params: JournalSearchParams) {
   const errors: string[] = [];
-  const value = (key: string) => {
+  const value = (key: string, label = false) => {
     const raw = params[key];
     if (Array.isArray(raw)) { errors.push(`Use only one ${key} value.`); return ""; }
-    return raw?.trim() ?? "";
+    // Label keys mirror PostgreSQL btrim, which removes ordinary spaces only.
+    return raw === undefined ? "" : label ? raw.replace(/^ +| +$/g, "") : raw.trim();
   };
   const filters: JournalFilters = {};
-  const symbol = value("symbol").toUpperCase();
+  const symbol = value("symbol", true).toUpperCase();
   if (symbol.length > 20) errors.push("Symbol must be 20 characters or fewer.");
   else if (symbol) filters.symbol = symbol;
+  const setup = value("setup", true);
+  if (setup.length > 100) errors.push("Setup must be 100 characters or fewer.");
+  else if (setup) filters.setup = setup;
+  const missing = value("missing");
+  if (missing === "setup" || missing === "symbol") filters.missing = missing;
+  else if (missing) errors.push("Choose a missing setup, missing symbol, or no missing-label filter.");
+  if ((missing === "setup" && setup) || (missing === "symbol" && symbol)) errors.push("Remove the exact label before filtering for that missing label.");
   const direction = value("direction");
   if (direction === "LONG" || direction === "SHORT") filters.direction = direction;
   else if (direction) errors.push("Choose Long, Short, or all directions.");
@@ -47,10 +57,14 @@ export function parseJournalFilters(params: JournalSearchParams) {
 
 export function journalHref(filters: JournalFilters, page = 1) {
   const params = new URLSearchParams();
-  for (const key of ["symbol", "direction", "status", "review", "from", "to"] as const) {
+  for (const key of ["symbol", "setup", "missing", "direction", "status", "review", "from", "to"] as const) {
     if (filters[key]) params.set(key, filters[key]);
   }
   if (page > 1) params.set("page", String(page));
   const query = params.toString();
   return `/trades${query ? `?${query}` : ""}`;
+}
+
+export function breakdownJournalHref(by: "setup" | "symbol", group: string | null, period: Pick<JournalFilters, "from" | "to">) {
+  return journalHref({ from: period.from, to: period.to, ...(group === null ? { missing: by } : { [by]: group }) });
 }
