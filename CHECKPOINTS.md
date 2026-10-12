@@ -2,6 +2,12 @@
 
 Baseline: `027f5d3` (CP6B, persisted entries using IPv4 Neon HTTP).
 
+Current handoff (2026-10-09): CP11–25 are merged on `main` (`411ee2d`) and its
+CI passed, including Chromium workflows. The working `cp13-auth` database passed
+a read-only audit: seven matching migrations, zero pending, and all required
+schema checks. The owner confirmed live password reset works; earlier pending
+recovery/PR consolidation notes below describe historical implementation status.
+
 ## CP7 — reproducible migrations
 
 The original two migrations already match the schema; no rewrite or new schema
@@ -464,3 +470,35 @@ Acceptance: choose a period containing known entries, inspect both tables and
 View matching trades; choose an empty period; reverse the dates; restore All time.
 CP22–24 CI passed on 49b3827. Their live local acceptance, real-provider reset-link
 recovery, and PR consolidation remain pending unless separately confirmed.
+
+## CP26 — compare outcome size as well as win rate
+
+Setup and symbol breakdowns now show average recorded P&L, average win, average
+loss size, and profit factor for the selected entry-date period. Average P&L
+includes break-even trades in the measured sample. Win/loss averages use only
+their applicable outcomes; loss size is positive. Missing samples display dashes,
+while measured zero averages display 0.00. Profits with no losses show an infinite
+profit factor; break-even-only groups show a dash. Sample-size and currency
+limitations remain visible. These are recorded outcomes, not a forecast or
+risk-normalized expectancy.
+
+Shared SQL aggregation computes and rounds averages and profit factor using
+PostgreSQL numeric arithmetic, retaining decimal strings through rendering.
+The dashboard's existing profit factor also uses that precise calculation rather
+than JavaScript floats. Ownership, lifecycle exclusions and UTC period boundaries
+apply before aggregation. No migration, dependency or environment changes.
+
+Verified locally: 46 tests, lint, production build including TypeScript,
+signed-out access, auth/recovery HTTP fixtures, and full-app HTTP isolation.
+Coverage includes positive/negative half-cent rounding, profit factor 2.675 → 2.68,
+no wins/losses, break-even samples, large totals, owner scope, period boundaries,
+and a 66.7% win-rate group with negative average P&L. HTTP checks assert rendered
+average cells; the Chromium gate checks headers and open-only missing values.
+Local Chromium download failed with invalid archives; remote CI is the browser
+acceptance gate and must pass before this feature is considered ready.
+
+Acceptance: inspect a known setup over a chosen period, compare recorded P&L / its
+measured sample with Average P&L, and compare winning/losing trade amounts with
+their separate averages. An open-only group should display dashes; a break-even
+group should display 0.00 for Average P&L. Horizontal table scrolling accommodates
+the additional columns on narrow screens. See RELEASE.md to reconcile `main`.

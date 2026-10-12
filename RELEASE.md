@@ -1,7 +1,8 @@
-# CP16: verification and release rehearsal
+# Verification and release rehearsal
 
 This is a reviewable development increment, not a production deployment.
-CP14–16 have no new schema migration after CP13's `0003_auth_identity`.
+CP11–25 are consolidated on `main` as of 2026-10-09. The required schema has
+seven migrations through `0006_trade_revision`; CP26 adds no migration.
 The working user branch remains `cp13-auth`; do not replace its credentials with
 those of a test branch. Do not rerun ownership linking for an already-linked journal.
 
@@ -14,11 +15,12 @@ Git's file summaries and terminal output are not commands.
 cd ~/Desktop/Projects/rational-ai/rationale-ai
 git status --short --branch
 git fetch origin
-git switch codex/cp14-cp16
+git switch main
+git pull --ff-only origin main
 npm ci --no-audit --no-fund
 ```
 
-If the branch already exists, follow the switch with `git pull --ff-only`.
+If a fast-forward is refused, inspect local commits before reconciling them.
 Your README edit can normally carry across; preserve it if Git reports a conflict.
 Do not use reset/clean to resolve it. Keep the current working DATABASE_URL,
 NEON_AUTH_BASE_URL and NEON_AUTH_COOKIE_SECRET. Add this to `.env.local`:
@@ -39,7 +41,7 @@ npm run dev
 ```
 
 `db:verify` performs SELECTs only. It checks ledger hashes/order/timestamps and
-required identity/default-account columns/indexes. It is not a complete schema-diff
+required identity/default-account/review/submission/revision columns/indexes. It is not a complete schema-diff
 tool. If it reports pending migrations, follow MIGRATIONS.md on a disposable branch
 first. Missing/conflicting history must be investigated; never manufacture ledger
 rows or reset a populated database. A matching ledger alone cannot prove that every
@@ -119,8 +121,9 @@ query timing. Do not weaken session checks or cache private responses to mask it
 
 ## Production rollout gates (not executed)
 
-1. Review and merge dependencies in order: auth foundation, CP13, then CP14–16.
-   These PRs are stacked. Confirm CI is green; configure branch protection to require
+1. CP11–25 are merged in dependency order. The combined `main` commit `411ee2d`
+   passed all CI gates, including Chromium workflows. Check the exact commit's CI
+   for subsequent feature PRs; configure branch protection to require
    the `verify` job separately in GitHub settings (this workflow does not enable it).
 2. Pick the hosting origin. Provision production's own Neon Auth, trusted HTTPS
    origin, cookie secret and email policy. Match DATABASE_URL and Auth URL to the
@@ -150,3 +153,19 @@ two complete accounts and four complete trades. No Auth identity was assigned.
 This validates additive database migration/data preservation, not production login,
 email delivery or deployment. The branch is retained for inspection; production and
 the user's working `cp13-auth` journal were not changed.
+
+## Consolidation and verification (2026-10-09)
+
+PRs #2–12 are merged, preserving the separate checkpoint commits. `main` at
+`411ee2d` has the same source tree as the tested CP25 stack. Its own CI run passed:
+https://github.com/Emmanuel9762/rationale-ai/actions/runs/37888597656
+
+A read-only audit of the working `cp13-auth` branch matched all seven local
+migration hashes and timestamps, with zero pending. The exact schema query from
+`db:verify` passed every identity/default-account/review/submission/revision check.
+No live database writes were performed. Keep the existing working credentials.
+
+The owner confirmed live password reset now works. That supersedes earlier
+recovery-blocker notes in the historical checkpoint entries. Fixture/browser CI
+establishes controlled-provider behavior; independent local account isolation and
+real inbox verification acceptance remain distinct from the database audit.

@@ -12,6 +12,7 @@ test("dashboard aggregates persisted results with ownership and lifecycle exclus
     await migrate(db, { migrationsFolder: "./drizzle" });
     const empty = await tradeMetrics(db, "00000000-0000-4000-8000-000000000000");
     assert.equal(empty.total, 0); assert.equal(empty.winRate, "—"); assert.equal(empty.profitFactor, "—");
+    assert.equal(empty.averagePnl, null); assert.equal(empty.averageWin, null); assert.equal(empty.averageLoss, null);
     const [user] = await db.insert(users).values({ email: "one@test.local" }).returning();
     const [account] = await db.insert(tradingAccounts).values({ userId: user.id, name: "Test", balance: "0" }).returning();
     const base = { accountId: account.id, symbol: "EURUSD", direction: "LONG", entryPrice: "1", quantity: "1", entryTime: new Date("2026-09-21T12:00Z") };
@@ -28,6 +29,7 @@ test("dashboard aggregates persisted results with ownership and lifecycle exclus
     assert.equal(result.total, 8); assert.equal(result.closed, 5); assert.equal(result.open, 3);
     assert.equal(result.measured, 4); assert.equal(result.missingPnl, 1);
     assert.equal(result.pnl, "100.20"); assert.equal(result.winRate, "50.0%"); assert.equal(result.profitFactor, "3.00");
+    assert.equal(result.averagePnl, "25.05"); assert.equal(result.averageWin, "75.15"); assert.equal(result.averageLoss, "50.10");
     assert.equal((await tradeMetrics(db, "00000000-0000-4000-8000-000000000000")).total, 0);
     const [loser] = await db.insert(users).values({ email: "loss@test.local" }).returning();
     const [lossAccount] = await db.insert(tradingAccounts).values({ userId: loser.id, name: "Test", balance: "0" }).returning();
