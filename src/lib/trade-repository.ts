@@ -30,6 +30,7 @@ export function tradeRepository(database: Pick<typeof db, "select">) {
       filters.status === "open" ? or(isNull(trades.exitTime), isNull(trades.exitPrice)) : undefined,
       filters.review === "reviewed" ? isNotNull(trades.reviewedAt) : undefined,
       filters.review === "unreviewed" ? isNull(trades.reviewedAt) : undefined,
+      filters.adherence ? eq(tradeGroup("adherence"), filters.adherence) : undefined,
       filters.from ? gte(trades.entryTime, new Date(`${filters.from}T00:00:00.000Z`)) : undefined,
       through ? lt(trades.entryTime, through) : undefined,
     ));

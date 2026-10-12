@@ -2,6 +2,7 @@ import { requireCurrentUser } from "@/lib/auth/current-user";
 import Link from "next/link";
 import { db } from "@/db";
 import { EXPORT_LIMIT, tradeRepository } from "@/lib/trade-repository";
+import { PLAN_ADHERENCE_LABELS } from "@/lib/plan-adherence";
 
 import { parseJournalFilters, journalHref, type JournalSearchParams } from "@/lib/journal-filters";
 
@@ -25,6 +26,7 @@ export default async function TradesPage({ searchParams }: { searchParams: Promi
         <label>Direction<select className={field} name="direction" defaultValue={filters.direction ?? ""}><option value="">All directions</option><option value="LONG">Long</option><option value="SHORT">Short</option></select></label>
         <label>Status<select className={field} name="status" defaultValue={filters.status ?? ""}><option value="">All statuses</option><option value="open">Open / incomplete</option><option value="closed">Closed</option></select></label>
         <label>Review<select className={field} name="review" defaultValue={filters.review ?? ""}><option value="">All reviews</option><option value="reviewed">Reviewed</option><option value="unreviewed">Unreviewed</option></select></label>
+        <label>Plan adherence<select className={field} name="adherence" defaultValue={filters.adherence ?? ""}><option value="">All assessments</option>{Object.entries(PLAN_ADHERENCE_LABELS).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
         <label>Entry from (UTC)<input className={field} name="from" type="date" defaultValue={filters.from ?? ""} /></label>
         <label>Entry through (UTC)<input className={field} name="to" type="date" defaultValue={filters.to ?? ""} /></label>
         <div className="flex items-center gap-4 sm:col-span-2 lg:col-span-5"><button className="rounded bg-zinc-100 px-4 py-2 text-zinc-950">Apply filters</button><Link className="underline" href="/trades">Clear filters</Link></div>
