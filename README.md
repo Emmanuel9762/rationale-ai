@@ -64,7 +64,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 ## CP32 release verification
 
 After fetching and successfully switching to the intended checkpoint, run
-`npm run release:verify -- --expect-ref origin/codex/cp32-release-preflight`.
+`npm run release:verify -- --expect-ref origin/main`.
 The read-only gate requires an exact, clean checkout before database verification;
 expect nine migrations and zero pending. It never applies migrations. See
 [RELEASE.md](RELEASE.md) for Fish commands, preserving README edits, environment
@@ -84,3 +84,10 @@ On Performance, select a Total, Open / incomplete, Closed without P&L or Closed 
 P&L count to inspect its trades. Group and entry dates carry into the journal and
 CSV export. Zero counts open an empty result. These views use current saved values,
 so later edits can change membership. No new migration is required.
+
+## Consolidated baseline (CP35)
+
+CP26–34 are merged on `main`. Fetch, switch successfully and fast-forward before
+running `release:verify -- --expect-ref origin/main`; see RELEASE.md for the full
+Fish sequence and local acceptance. The schema still requires nine migrations.
+Consolidated CI does not replace testing your own database/Auth pairing locally.

@@ -1,7 +1,7 @@
 # Verification and release rehearsal
 
 This is a reviewable development increment, not a production deployment.
-CP32 includes the CP26–31 feature stack and requires nine migrations through
+CP35 consolidates CP26–34 on `main` and requires nine migrations through
 `0008_import_trade_links`. Earlier consolidation evidence below describes its
 historical commit only. Keep the existing database/Auth pairing; never rerun
 ownership linking for an already-linked journal.
@@ -13,7 +13,7 @@ If README.md is your only modified file, a named stash keeps it recoverable:
 
 ```fish
 git status --short --branch
-git stash push -m "README edits before CP32" -- README.md
+git stash push -m "README edits before CP35" -- README.md
 ```
 
 Inspect and preserve any other changes separately; do not reset or clean them.
@@ -21,8 +21,8 @@ Then run this success-chained sequence from the repository:
 
 ```fish
 git fetch origin
-and git switch codex/cp32-release-preflight
-and git merge --ff-only origin/codex/cp32-release-preflight
+and git switch main
+and git merge --ff-only origin/main
 and npm ci --no-audit --no-fund
 ```
 
@@ -32,7 +32,7 @@ Keep the README stash until you deliberately reconcile its edits. Check the priv
 
 ```fish
 set -e DATABASE_URL
-npm run release:verify -- --expect-ref origin/codex/cp32-release-preflight
+npm run release:verify -- --expect-ref origin/main
 and npm run dev
 ```
 
@@ -78,6 +78,16 @@ Use http://localhost:3000, not the LAN IP or 127.0.0.1.
    Follow the new batch, narrow the journal and export it. Replaying the same CSV
    must not add trades. Edit a linked trade and confirm it remains in the batch.
    Older CP30 receipts can show unavailable links; do not infer their membership.
+
+6. In Trade history, apply Wins, Losses, Break-even and Closed without P&L to
+   known test records. Export and confirm the same membership. In Performance,
+   select an entry-date range and follow a measured or missing-P&L count. Confirm
+   the group, dates and outcome survive navigation and CSV export. Zero counts
+   should open an empty result, not all trades.
+
+Record the verified commit SHA and pass/fail for these checks without including
+credentials, reset links or personal trade exports. Remote CI is separate evidence;
+laptop acceptance is not complete until these checks are performed there.
 
 No automated tests send emails to your personal account. Inbox delivery, spam
 placement and actual browser cookies must be validated in this environment.
@@ -183,3 +193,19 @@ The owner confirmed live password reset now works. That supersedes earlier
 recovery-blocker notes in the historical checkpoint entries. Fixture/browser CI
 establishes controlled-provider behavior; independent local account isolation and
 real inbox verification acceptance remain distinct from the database audit.
+
+## CP35 consolidation (2026-10-12)
+
+PRs #13–21 were reviewed for exact head revisions, passing CI and dependency order,
+then merged onto main with merge commits preserving individual checkpoint history.
+The combined merge commit `086996c4ce4a39b000cccabbef3c09f2317dc76d` has exactly the
+same tree as CP34 `fe4042f5f2e3d4a8d9299cc7728cf63057bcfd39`. No conflict resolutions
+or application behavior changes were needed. This checkpoint updates release
+instructions to main and adds outcome/sample acceptance to the laptop checklist.
+The final commit's GitHub Actions run is the authority for consolidated CI status.
+
+Expected schema remains nine migrations. No live database verification, migration,
+credential changes, deployment or laptop acceptance was performed during CP35.
+Keep the working database/Auth pairing. If upgrading from seven migrations,
+rehearse and apply 0007/0008 using MIGRATIONS.md before expecting verification to
+pass. Retain any README stash until its contents have been deliberately reconciled.

@@ -767,3 +767,22 @@ CSV membership across all three dimensions, zero samples, missing/literal labels
 owner scope and pagination. Browser CI follows zero and measured count links and
 checks retained dates and export outcomes. No live database changes. Next priority
 is release consolidation and local acceptance of the combined checkpoint stack.
+
+
+## CP35 — consolidate the release baseline on main
+
+Reviewed PRs #13–21: all exact heads had successful verify checks and were ready
+for review. Merged in dependency order, retargeting each subsequent PR to main
+without squashing individual checkpoint history. Main merge commit 086996c has
+exactly the same source tree as tested CP34 fe4042f; no conflict edits were needed.
+README and RELEASE now use origin/main for the current handoff and include outcome
+and performance-sample acceptance. The final main SHA receives its own CI run.
+
+Verification evidence: exact pre-merge head checks passed, source-tree equality
+was verified with git diff --exit-code, and documentation diff checks passed.
+No application code, packages, schema, credentials or live data changed. The
+expected schema is still nine migrations. Live local acceptance remains pending;
+this checkpoint does not claim deployment or verification on the user's laptop.
+
+Next: run RELEASE.md's local acceptance on the consolidated main commit and resolve
+any observed failures before choosing another product feature.
