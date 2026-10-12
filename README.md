@@ -77,3 +77,10 @@ closed trades missing P&L. Outcomes require both an exit price and exit time and
 use recorded P&L rather than calculating profit from prices. The selection combines
 with batch, group, date and review filters and survives pagination and CSV export.
 Open status plus an outcome is rejected as conflicting. No migration is required.
+
+## Inspect performance samples (CP34)
+
+On Performance, select a Total, Open / incomplete, Closed without P&L or Closed with
+P&L count to inspect its trades. Group and entry dates carry into the journal and
+CSV export. Zero counts open an empty result. These views use current saved values,
+so later edits can change membership. No new migration is required.

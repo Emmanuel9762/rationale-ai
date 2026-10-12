@@ -744,3 +744,26 @@ HTTP isolation pass, including outcome validation, exact sign/zero/missing value
 legacy incomplete rows, >25 matches, export parity, owner and batch scope. A corrupt
 Turbopack cache was moved aside before the successful build. Browser CI additionally
 selects Wins inside an imported batch and verifies its URL/export selection.
+
+## CP34 — inspect the sample behind each performance count
+
+Total, Open / incomplete, Closed without P&L and Closed with P&L counts now link
+to their exact journal subsets in every setup, symbol and plan-adherence group.
+The URL helper preserves label normalization, missing labels and entry-date bounds,
+then adds status or outcome selection. Zero counts remain inspectable links to an
+empty result. Accessible link names identify count, subset, dimension and group.
+Existing group-title links still show all trades. Results use current saved values;
+subsequent edits can change the counts between requests.
+
+The journal and CSV reuse existing owner-scoped filtering. No additional database
+queries, schema changes, dependencies or environment settings are introduced.
+Acceptance: on Performance, select a date range and a measured or missing-P&L count;
+verify the group/dates/outcome in Trade history, then export. Open-count links must
+include incomplete trades and never masquerade as measured outcomes.
+
+Verified locally: all 66 tests, lint, typecheck, production build and full HTTP
+isolation pass. Expanded database tests compare each subset count with journal and
+CSV membership across all three dimensions, zero samples, missing/literal labels,
+owner scope and pagination. Browser CI follows zero and measured count links and
+checks retained dates and export outcomes. No live database changes. Next priority
+is release consolidation and local acceptance of the combined checkpoint stack.

@@ -208,6 +208,10 @@ try {
   assert.match(datedPerformance,/href="\/trades\?from=2026-01-01&amp;to=2026-01-01"/);
   assert.match(datedPerformance,/href="\/trades\?setup=OWNER_SETUP&amp;from=2026-01-01&amp;to=2026-01-01"/);
   assert.match(datedPerformance,/By plan adherence/);assert.match(datedPerformance,/Followed my plan/);
+  const measuredQuery='setup=OWNER_SETUP&outcome=measured&from=2026-01-01&to=2026-01-01';
+  assert.ok(datedPerformance.includes('/trades?'+measuredQuery.replaceAll('&','&amp;')));
+  assert.ok((await(await a.request('/trades?'+measuredQuery)).text()).includes(`href="${tradePath}"`));
+  assert.equal(((await(await a.request('/trades/export?'+measuredQuery)).text()).match(/ONLY_A/g)||[]).length,1);
   const adherenceQuery='adherence=followed&from=2026-01-01&to=2026-01-01';
   assert.ok(datedPerformance.includes('/trades?'+adherenceQuery.replaceAll('&','&amp;')));
   const adherenceHtml=await(await a.request('/trades?'+adherenceQuery)).text();
@@ -452,6 +456,17 @@ try {
 
       await pages[0].getByRole('link',{name:'BATCH_BROWSER',exact:true}).waitFor();
       console.log('CSV import browser: confirm, save, reload/replay and journal visibility passed.');
+      await pages[0].goto(base.replace('127.0.0.1','localhost')+'/performance?from=2026-09-01&to=2026-09-01');
+      await pages[0].getByRole('link',{name:'View 0 closed trades without P&L for symbol: BATCH_BROWSER',exact:true}).click();
+      await pages[0].getByText('No trades match these filters.',{exact:false}).waitFor();
+      assert.equal(new URL(pages[0].url()).searchParams.get('outcome'),'missing');
+      await pages[0].goBack();
+      await pages[0].getByRole('link',{name:'View 1 closed trades with P&L for symbol: BATCH_BROWSER',exact:true}).click();
+      await pages[0].getByRole('link',{name:'BATCH_BROWSER',exact:true}).waitFor();
+      assert.equal(new URL(pages[0].url()).searchParams.get('outcome'),'measured');
+      assert.equal(new URL(pages[0].url()).searchParams.get('from'),'2026-09-01');
+      assert.ok((await pages[0].getByRole('link',{name:'Export matching trades (CSV)',exact:true}).getAttribute('href')).includes('outcome=measured'));
+
       await pages[1].goto(base.replace('127.0.0.1','localhost')+'/performance');
       await pages[1].getByText('No trades yet.',{exact:false}).waitFor();
       await pages[1].goto(base.replace('127.0.0.1','localhost')+path);assert.ok(!(await pages[1].textContent('body')).includes('A private rationale'));
