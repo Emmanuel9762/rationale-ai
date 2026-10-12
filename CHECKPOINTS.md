@@ -689,3 +689,36 @@ its batch and verify counts, filters and exported membership. Edit one linked
 trade and verify it remains in that batch. CP31 is stacked on CP30 (PR #17).
 Next useful work: reconcile the pending PR stack and run local release acceptance
 before adding more features.
+
+## CP32 — verify the intended checkout before the database
+
+`npm run release:verify -- --expect-ref <fetched-ref-or-commit>` requires an exact
+HEAD match and a clean tracked/untracked working tree before invoking the existing
+read-only database verifier. It rejects missing/invalid arguments, unresolved refs,
+wrong commits and local changes without starting database access. Ignored private
+environment files remain allowed and are not read or printed by the Git gate.
+Detached HEAD at the expected commit works. A second Git check catches checkout
+changes during database verification; database failure propagates a failing exit.
+
+This directly addresses the failed README checkout followed by verification of
+older code. RELEASE.md now gives success-chained Fish commands, retained README
+stash guidance, current nine-migration expectations and CSV history acceptance.
+The command never fetches, migrates, resets, merges or deploys. Fetch first or pass
+an immutable reviewed SHA; using HEAD as the expected ref is not an upgrade check.
+Database/Auth pairing, ignored configuration, complete schema equivalence and live
+browser/email acceptance remain separate checks. Stop the app before upgrading.
+
+Verified locally: all 64 tests, lint, typecheck and diff checks pass. Four new tests
+use real temporary Git repositories to exercise clean/detached success, ignored
+environment files, dirty/staged/untracked work, missing refs, wrong commits,
+database failure and edits during verification. A direct CLI mismatch exited 1
+before database access. The database callback is controlled in unit tests; no live
+Neon verification or migration was performed. Remote CI runs the existing complete
+build/access/auth/browser gates. No schema, environment or dependency changes.
+
+CP32 is stacked on CP31. Local acceptance: fetch and switch successfully, inspect
+the intended private environment, run release:verify against the fetched CP32 ref,
+and expect nine verified migrations with zero pending. If migrations are pending,
+follow MIGRATIONS.md's disposable-copy rehearsal, migrate explicitly and rerun.
+Next priority: complete local acceptance and consolidate the reviewed PR stack
+before expanding features.
