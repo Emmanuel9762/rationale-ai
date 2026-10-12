@@ -50,6 +50,13 @@
       "when": 1791389970555,
       "tag": "0006_trade_revision",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791576262980,
+      "tag": "0007_trade_imports",
+      "breakpoints": true
     }
   ]
 }

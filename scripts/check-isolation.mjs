@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+const {encodeReply}=createRequire(import.meta.url)('next/dist/compiled/react-server-dom-webpack/client.node');
 import https from 'node:https';
 import { spawn, execFileSync } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -19,6 +21,7 @@ await migrate(drizzle(database), { migrationsFolder: './drizzle' });
 let child;
 let provider;
 let loseTradeInsertReply = false;
+let loseImportReply = false;
 try {
   const cert = join(dir, 'cert.pem'), key = join(dir, 'key.pem');
   execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-keyout', key, '-out', cert, '-subj', '/CN=localhost', '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1'], { stdio: 'ignore' });
@@ -38,6 +41,7 @@ try {
           loseTradeInsertReply = false;
           return reply({message:'Fixture lost insert response'},503);
         }
+        if (loseImportReply && /with claimed as/i.test(body.query)) { loseImportReply=false; return reply({message:'Fixture lost import response'},503); }
         const text = (value, field) => value === null ? null : value instanceof Date ? (field.dataTypeID === 1114 ? value.toISOString().slice(0,-1).replace('T',' ') : value.toISOString()) : typeof value === 'boolean' ? (value ? 't':'f') : typeof value === 'object' ? JSON.stringify(value) : String(value);
         return reply({ fields: result.fields, rows: result.rows.map(row=>result.fields.map((f, i)=>text(row[i], f))), rowCount: result.affectedRows ?? result.rows.length, command: 'SELECT' });
       } catch (e) { return reply({message:e.message,code:e.code},400); }
@@ -71,7 +75,7 @@ try {
   function browserSession() {
     const jar=new Map();
     async function request(path,init={}) {
-      const r=await fetch(base+path,{...init,redirect:'manual',headers:{Origin:base,Cookie:[...jar].map(([k,v])=>`${k}=${v}`).join('; ')},signal:AbortSignal.timeout(15000)});
+      const r=await fetch(base+path,{...init,redirect:'manual',headers:{...init.headers,Origin:base,Cookie:[...jar].map(([k,v])=>`${k}=${v}`).join('; ')},signal:AbortSignal.timeout(15000)});
       for(const h of r.headers.getSetCookie()){const pair=h.split(';')[0],i=pair.indexOf('=');jar.set(pair.slice(0,i),pair.slice(i+1));}return r;
     }
     async function submit(path,fields,html) {
@@ -251,6 +255,31 @@ try {
   for(const session of sessions.values())session.session.expiresAt=new Date(0).toISOString();
   const expired=await b.request('/trades');assert.equal(expired.headers.get('location'),'/sign-in');
   console.log('Two-user HTTP isolation: scoped dashboard/list/detail, denied cross-owner update, forged ownership ignored, owner edit, signed-out write and expired session passed.');
+  const importManifest=JSON.parse(await readFile('.next/server/server-reference-manifest.json','utf8'));
+  const importAction=Object.entries(importManifest.node).find(([,entry])=>entry.exportedName==='importTradeCsv')[0];
+  const importCsv='symbol,direction,entry_price,quantity,entry_time_utc,exit_price,exit_time_utc,recorded_pnl,plan_adherence,review_went_well\nBATCH_HTTP,LONG,1,2,2026-09-01T00:00:00.123Z,2,2026-09-01T01:00:00.456Z,2,followed,Patient';
+  async function submitImport(client,fields) {
+    const data=new FormData();for(const [name,value]of Object.entries(fields))data.set(name,value);
+    return client.request('/trades/preview',{method:'POST',headers:{'Next-Action':importAction},body:await encodeReply([data])});
+  }
+  const deniedImport=await submitImport(a,{csv:importCsv,confirmed:'yes'});
+  assert.match(deniedImport.headers.get('x-action-redirect')??'',/^\/sign-in;/);await deniedImport.text();
+  const c=browserSession();await c.submit('/sign-up',{name:'Importer',email:'importer@example.test',password:'fixture-password'});
+  assert.match(await(await submitImport(c,{csv:importCsv,confirmed:'no'})).text(),/Confirm that you want to save/);
+  const mixed=await readFile('public/samples/rationaleai-mock-trades.csv','utf8');
+  assert.match(await(await submitImport(c,{csv:mixed,confirmed:'yes'})).text(),/Fix all 6 invalid/);
+  assert.equal((await database.query('select count(*)::int n from trade_imports')).rows[0].n,0);
+  loseImportReply=true;
+  const lostImport=await submitImport(c,{csv:importCsv,confirmed:'yes',accountId:aTrade.account_id});
+  assert.match(await lostImport.text(),/Could not confirm the import/);assert.equal(loseImportReply,false);
+  assert.equal((await database.query("select count(*)::int n from trades where symbol='BATCH_HTTP'")).rows[0].n,1);
+  const imports=await Promise.all(Array.from({length:4},()=>submitImport(c,{csv:importCsv,confirmed:'yes'})));
+  for(const response of imports)assert.match(await response.text(),/"receipt"/);
+  assert.equal((await database.query("select count(*)::int n from trades where symbol='BATCH_HTTP'")).rows[0].n,1);
+  const imported=(await database.query("select account_id,reviewed_at from trades where symbol='BATCH_HTTP'")).rows[0];assert.notEqual(imported.account_id,aTrade.account_id);assert.ok(imported.reviewed_at);
+  assert.match(await(await c.request('/trades?symbol=BATCH_HTTP')).text(),/BATCH_HTTP<\/a>/);
+  assert.match(await(await c.request('/performance')).text(),/Followed my plan/);
+  console.log('CSV import HTTP: server validation, signed-out denial, forged ownership ignored and lost-response/concurrent retries passed.');
   if(process.argv.includes('--browser')) {
     const {chromium}=await import('playwright');const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE||undefined});
     try {
@@ -364,6 +393,25 @@ try {
       await pages[0].getByRole('link',{name:'All time',exact:true}).click();
       await pages[0].getByRole('region',{name:'By symbol',exact:true}).waitFor();
       assert.equal(await pages[0].getByLabel('From entry date (UTC)',{exact:true}).inputValue(),'');
+      await pages[0].goto(base.replace('127.0.0.1','localhost')+'/trades/preview');
+      const browserImportCsv=importCsv.replaceAll('BATCH_HTTP','BATCH_BROWSER');
+      async function previewBrowserImport() {
+        await pages[0].getByLabel('Trade CSV',{exact:true}).setInputFiles({name:'valid.csv',mimeType:'text/csv',buffer:Buffer.from(browserImportCsv)});
+        await pages[0].getByRole('button',{name:'Preview CSV',exact:true}).click();
+        await pages[0].getByRole('form',{name:'Confirm CSV import',exact:true}).waitFor();
+      }
+      await previewBrowserImport();
+      await pages[0].getByLabel('I confirm these trades should be saved to my journal.',{exact:true}).check();
+      await pages[0].getByRole('button',{name:'Confirm import',exact:true}).click();
+      await pages[0].getByText('Batch confirmed: 1 trade. Replaying this batch will not add it again.',{exact:true}).waitFor();
+      await pages[0].reload();await previewBrowserImport();
+      await pages[0].getByLabel('I confirm these trades should be saved to my journal.',{exact:true}).check();
+      await pages[0].getByRole('button',{name:'Confirm import',exact:true}).click();
+      await pages[0].getByText('Batch confirmed: 1 trade. Replaying this batch will not add it again.',{exact:true}).waitFor();
+      assert.equal((await database.query("select count(*)::int n from trades where symbol='BATCH_BROWSER'")).rows[0].n,1);
+      await pages[0].getByRole('link',{name:'View trade history',exact:true}).click();
+      await pages[0].getByRole('link',{name:'BATCH_BROWSER',exact:true}).waitFor();
+      console.log('CSV import browser: confirm, save, reload/replay and journal visibility passed.');
       await pages[1].goto(base.replace('127.0.0.1','localhost')+'/performance');
       await pages[1].getByText('No trades yet.',{exact:false}).waitFor();
       await pages[1].goto(base.replace('127.0.0.1','localhost')+path);assert.ok(!(await pages[1].textContent('body')).includes('A private rationale'));

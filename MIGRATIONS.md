@@ -159,3 +159,34 @@ then submit a different change from tab B. B must show a conflict and retain its
 draft; the stored value must still be A's. Copy B's desired changes, use Load latest
 saved version, then reapply and save. Repeat with two review forms, and with a trade
 edit versus a review. A fresh review form should allow successive successful saves.
+
+## CP30 CSV import receipts
+
+`0007_trade_imports` adds an empty `trade_imports` table with owner/account foreign
+keys and a unique `(user_id, payload_hash)` index. It does not alter or backfill
+existing trades, accounts or balances. The receipt and all trades in a batch are
+inserted in a single SQL statement. A failed statement rolls both back. Resolving
+an owner's default account happens first and may leave an empty default account
+if the batch subsequently fails.
+
+Rehearse on a backup/disposable copy first. Stop the app and keep the intended
+DATABASE_URL paired with its existing Auth endpoint. Then, in Fish:
+
+```fish
+set -e DATABASE_URL
+npm run db:migrate
+npm run db:verify
+```
+
+Expect eight verified migrations, zero pending, and successful import column,
+foreign-key and unique-index checks. No new environment variables or dependencies.
+Start CP30 only after migration succeeds. Older app code can ignore the new table;
+retain receipts if rolling code back. Deleting receipts removes retry protection.
+The migration runner is not atomic across the migration sequence; inspect history
+and schema if interrupted, rather than blindly retrying partially applied DDL.
+No live database migration was performed during CP30 implementation.
+
+Identical validated rows in the same order map to one owner-scoped receipt.
+Replays return the original count even if trades were subsequently edited. This
+is batch retry protection, not row-level deduplication across different files.
+Different content/order is a different batch and may overlap existing trades.
