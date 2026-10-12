@@ -1,3 +1,16 @@
+## CSV preview and mock testing
+
+Sign in and open **Trade history → Preview CSV** (`/trades/preview`). Download the
+mock file on that page, select it, and press **Preview CSV**. Expect **36 records:
+30 valid, 6 invalid, 2 repeated**. The last six records deliberately test validation
+failures; remove them for a valid-only file. Quoted multiline notes count as one
+CSV record. See CP29 in [CHECKPOINTS.md](CHECKPOINTS.md) for individual cases.
+
+This checkpoint previews files in your browser only. It does not upload them,
+insert trades, or compare duplicates against your saved journal. Existing CSV
+exports can be validated; their identity/timestamp metadata is ignored. The page
+documents supported headers, UTC timestamps, review rules and file limits.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

@@ -560,3 +560,41 @@ Acceptance: open Performance, choose dates, select a plan-adherence group and
 compare its Total trades with the matching journal. Edit one trade's review,
 return to Performance and confirm its group changed. CP28 builds on CP27 (PR #14);
 fetch and switch to `codex/cp28-plan-adherence` to try it.
+
+## CP29 — validate a trade CSV before importing
+
+The journal now links to `/trades/preview`, a protected page that reads a selected
+UTF-8 CSV entirely in the browser. It shows valid records, row-specific errors,
+open/closed sample counts and repeated normalized rows, with expandable notes and
+reviews. Changing or clearing the file removes the old preview. Files are limited
+to 256 KiB and 500 data records. Malformed CSV structure rejects the whole file;
+invalid trade values identify their logical CSV record without hiding valid rows.
+
+Trade and review validation are shared with existing forms. CSV timestamps use
+explicit UTC ISO seconds with optional three-digit milliseconds; the existing
+minute-based trade forms retain their contract. The CSV reader handles BOM,
+CRLF/LF, quoted commas, doubled quotes and multiline notes. Export metadata is
+ignored, never used as ownership instructions. Protective text apostrophes remain
+literal. Repeats compare normalized trade/review fields within the file only;
+there is no journal lookup, deduplication or batch save in this checkpoint.
+
+The downloadable `public/samples/rationaleai-mock-trades.csv` contains 36 synthetic
+records: 30 valid, 6 deliberately invalid, 2 repeated. Counts include repeats:
+5 open, 4 closed without P&L, 21 closed with P&L. Record 30 repeats record 4;
+record 31 repeats record 2. Records 32–37 respectively exercise zero quantity,
+partial closure, invalid calendar date, exit before entry, invalid adherence and
+excess decimal precision. Record 5 contains quoted multiline notes. Header is
+record 1; multiline fields do not increase record numbers. Remove the final six
+records for valid-only testing. Data is fictional, not broker or market data.
+
+Verified locally: 56 tests, lint, typecheck, production build, protected access
+and full-app HTTP isolation. Added browser checks cover sample counts, errors,
+repeats, multiline details, replacement/reset, no POST requests and unchanged
+stored trades. Remote CI supplies Chromium acceptance; local Chromium remains
+unavailable. No database migrations, dependencies or environment changes.
+
+Acceptance: fetch and switch to `codex/cp29-csv-preview`, start the app, open Trade
+history → Preview CSV, download the mock file and preview it. Expect the counts
+above and no new trades in history. CP29 is stacked on CP28 (#15). Next checkpoint:
+explicit batch confirmation with server-side revalidation, owner-derived account
+selection, atomic insertion and retry protection before enabling CSV saves.

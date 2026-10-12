@@ -1,6 +1,6 @@
 export class TradeInputError extends Error {}
 
-export function parseTradeInput(formData: FormData) {
+export function parseTradeInput(formData: FormData, timeFormat: "utc-minute" | "utc-iso" = "utc-minute") {
   function text(name: string, max: number, required = false) {
     const raw = formData.get(name);
     const value = typeof raw === "string" ? raw.trim() : "";
@@ -17,10 +17,12 @@ export function parseTradeInput(formData: FormData) {
     return value;
   }
   function date(name: string, required = false) {
-    const value = text(name, 16, required);
+    const value = text(name, timeFormat === "utc-minute" ? 16 : 24, required);
     if (!value) return null;
-    const date = new Date(`${value}:00Z`);
-    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 16) !== value) {
+    const pattern = timeFormat === "utc-minute" ? /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/ : /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+    const normalized = timeFormat === "utc-minute" ? `${value}:00.000Z` : value.length === 20 ? value.replace("Z", ".000Z") : value;
+    const date = new Date(normalized);
+    if (!pattern.test(value) || !Number.isFinite(date.getTime()) || date.toISOString() !== normalized) {
       throw new TradeInputError(`${name} must be a valid UTC date and time`);
     }
     return date;
