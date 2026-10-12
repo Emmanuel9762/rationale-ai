@@ -834,3 +834,28 @@ queue membership changes. CP35's laptop acceptance remains unconfirmed.
 Verified locally: all 68 tests, lint, typecheck, a fresh production build and full
 HTTP isolation pass. The stale Turbopack cache was moved aside after an internal
 cache-read failure. Browser navigation is verified by the checkpoint CI gate.
+
+## CP38 — dashboard entry-date periods
+
+Dashboard From/Through dates now scope the metric aggregate, follow-up counts and
+recent trades to the same UTC entry period. Both boundary days are included;
+blank bounds are unrestricted and All time clears the selection. Journal queue,
+all-matching-trades and explicit performance links retain both bounds. Entries are
+selected by entry time even if they closed later. Invalid, repeated or reversed
+dates show errors without querying or displaying broader dashboard results.
+The dashboard and performance aggregates share their date predicate builder.
+
+Tests cover exact UTC boundaries, one-sided/empty periods, owner isolation,
+entry-versus-exit semantics, decimal metrics and dashboard/journal queue parity.
+HTTP checks cover retained links and invalid/empty states. Browser coverage applies
+dates, follows the review queue and performance link, then clears the period.
+No schema, dependency, environment or live database change. Nine migrations remain
+required. CP38 is stacked on CP37; laptop acceptance is still unconfirmed.
+
+Acceptance: choose a period containing known trades, compare the follow-up counts
+with their linked journal results, open performance for those dates, and clear to
+All time. Try a period with no entries and confirm zero/empty results.
+
+Verified locally: all 68 tests, lint, typecheck, a fresh production build and full
+HTTP isolation pass. A corrupt local Turbopack cache was moved aside before the
+successful build. Full browser navigation is checked by the checkpoint CI gate.

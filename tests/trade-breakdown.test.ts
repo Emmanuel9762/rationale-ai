@@ -4,6 +4,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { users, tradingAccounts, trades } from "../src/db/schema";
+import { tradeRepository } from "../src/lib/trade-repository";
 import { tradeBreakdown, tradeMetrics, formatPnl } from "../src/lib/trade-metrics";
 
 test("performance groups preserve ownership, lifecycle exclusions, sample sizes and exact totals", async () => {
@@ -117,6 +118,19 @@ test("performance periods use inclusive UTC entry dates before aggregation and r
       {...base,accountId:accounts[1].id,entryTime:new Date("2026-02-28T12:00:00Z"),pnl:"999"},
       {...base,entryTime:new Date("2026-02-28T12:00:00Z"),exitPrice:null,exitTime:null,pnl:null},
     ]);
+    const period={from:"2026-02-28",to:"2026-02-28"};
+    const dashboard=await tradeMetrics(db,owners[0].id,period);
+    assert.equal(dashboard.total,3);assert.equal(dashboard.measured,2);assert.equal(dashboard.open,1);
+    assert.equal(dashboard.awaitingReview,2);assert.equal(dashboard.missingPnl,0);
+    assert.equal(dashboard.pnl,"-0.10");assert.equal(dashboard.winRate,"50.0%");
+    assert.equal((await tradeMetrics(db,owners[0].id,{from:"2026-03-01"})).total,1);
+    assert.equal((await tradeMetrics(db,owners[0].id,{to:"2026-02-27"})).total,1);
+    assert.equal((await tradeMetrics(db,owners[1].id,period)).total,1);
+    assert.equal((await tradeMetrics(db,owners[0].id,{from:"2027-01-01"})).total,0);
+    const repo=tradeRepository(db);
+    assert.equal((await repo.list(owners[0].id,1,period)).trades.length,dashboard.total);
+    assert.equal((await repo.exportRows(owners[0].id,{...period,status:"open"})).length,dashboard.open);
+    assert.equal((await repo.exportRows(owners[0].id,{...period,status:"closed",review:"unreviewed"})).length,dashboard.awaitingReview);
     for (const by of ["setup","symbol"] as const) {
       const [row] = await tradeBreakdown(db,owners[0].id,by,{from:"2026-02-28",to:"2026-02-28"});
       assert.equal(row.total,3);assert.equal(row.measured,2);assert.equal(row.open,1);

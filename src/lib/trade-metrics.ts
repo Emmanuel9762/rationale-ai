@@ -47,26 +47,33 @@ function summarize(result: MetricRow) {
   };
 }
 
-export async function tradeMetrics(database: Pick<typeof db, "select">, userId: string) {
+type EntryPeriod = Pick<JournalFilters, "from" | "to">;
+function entryPeriodConditions(period: EntryPeriod) {
+  const until = period.to ? new Date(`${period.to}T00:00:00.000Z`) : undefined;
+  if (until) until.setUTCDate(until.getUTCDate() + 1);
+  return [
+    period.from ? gte(trades.entryTime, new Date(`${period.from}T00:00:00.000Z`)) : undefined,
+    until ? lt(trades.entryTime, until) : undefined,
+  ];
+}
+
+export async function tradeMetrics(database: Pick<typeof db, "select">, userId: string, period: EntryPeriod = {}) {
   const [result] = await database.select({
     ...metricColumns(),
     awaitingReview: sql<number>`count(*) filter (where ${trades.exitTime} is not null and ${trades.exitPrice} is not null and ${trades.reviewedAt} is null)::int`,
   }).from(trades)
     .innerJoin(tradingAccounts, eq(trades.accountId, tradingAccounts.id))
-    .where(eq(tradingAccounts.userId, userId));
+    .where(and(eq(tradingAccounts.userId, userId), ...entryPeriodConditions(period)));
   return { ...summarize(result), awaitingReview: result.awaitingReview };
 }
 
 export async function tradeBreakdown(database: Pick<typeof db, "select">, userId: string, by: TradeGroupDimension, period: Pick<JournalFilters, "from" | "to"> = {}) {
-  const until = period.to ? new Date(`${period.to}T00:00:00.000Z`) : undefined;
-  if (until) until.setUTCDate(until.getUTCDate() + 1);
   const group = tradeGroup(by);
   const rows = await database.select({ group, ...metricColumns() }).from(trades)
     .innerJoin(tradingAccounts, eq(trades.accountId, tradingAccounts.id))
     .where(and(
       eq(tradingAccounts.userId, userId),
-      period.from ? gte(trades.entryTime, new Date(`${period.from}T00:00:00.000Z`)) : undefined,
-      until ? lt(trades.entryTime, until) : undefined,
+      ...entryPeriodConditions(period),
     ))
     .groupBy(group).orderBy(asc(group));
   return rows.map(row => ({ group: row.group, ...summarize(row) }));

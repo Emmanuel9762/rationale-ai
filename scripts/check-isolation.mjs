@@ -184,6 +184,16 @@ try {
   const invalidHtml=await(await a.request('/trades?from=2026-02-30')).text();assert.match(invalidHtml,/Check your filters/);assert.ok(!invalidHtml.includes('<table'));
   const otherFiltered=await(await b.request(filteredPath)).text();assert.match(otherFiltered,/No trades match these filters/);assert.ok(!otherFiltered.includes('<table'));
   console.log('Journal HTTP filters: preserved pagination links, first-page apply, empty/error states and owner isolation passed.');
+  const datedDashboard=await(await a.request('/?from=2026-01-01&to=2026-01-01')).text();
+  assert.ok(datedDashboard.includes('/trades?status=closed&amp;review=unreviewed&amp;from=2026-01-01&amp;to=2026-01-01'));
+  assert.ok(datedDashboard.includes('/performance?from=2026-01-01&amp;to=2026-01-01'));
+  assert.ok(datedDashboard.includes('/trades?from=2026-01-01&amp;to=2026-01-01'));
+  const futureDashboard=await(await a.request('/?from=2027-01-01')).text();
+  assert.match(futureDashboard,/No trades match these entry dates/);assert.ok(!futureDashboard.includes('ONLY_A'));
+  for(const query of ['from=2026-02-30','from=2026-02-01&to=2026-01-01','from=2026-01-01&from=2026-01-02']) {
+    const html=await(await a.request('/?'+query)).text();assert.match(html,/Check your dates/);
+    assert.ok(!html.includes('aria-label="Trading metrics"'));assert.ok(!html.includes('Journal follow-up'));assert.ok(!html.includes('Recent trades'));
+  }
   const performanceBefore = await(await a.request('/performance')).text();
   assert.match(performanceBefore,/Performance breakdowns/);assert.match(performanceBefore,/By setup/);assert.match(performanceBefore,/By symbol/);
   assert.ok(performanceBefore.includes('ONLY_A'));assert.ok(!performanceBefore.includes('ONLY_B'));
@@ -501,6 +511,22 @@ try {
       const download=await downloadEvent;assert.equal(download.suggestedFilename(),'rationale-trades.csv');
       const browserCsv=await readFile(await download.path(),'utf8');assert.ok(browserCsv.includes('ONLY_A'));assert.ok(!browserCsv.includes('ONLY_B'));
 
+      await pages[0].goto(base.replace('127.0.0.1','localhost')+'/');
+      await pages[0].getByLabel('From entry date (UTC)',{exact:true}).fill('2026-09-01');
+      await pages[0].getByLabel('Through entry date (UTC)',{exact:true}).fill('2026-09-01');
+      await pages[0].getByRole('button',{name:'Apply dates',exact:true}).click();
+      await pages[0].waitForURL(url=>url.searchParams.get('from')==='2026-09-01');
+      assert.ok((await pages[0].getByRole('link',{name:'View all matching trades',exact:true}).getAttribute('href')).includes('to=2026-09-01'));
+      await pages[0].getByRole('link',{name:'Closed trades awaiting review: 0',exact:true}).click();
+      await pages[0].waitForURL(url=>url.pathname==='/trades'&&url.searchParams.get('from')==='2026-09-01'&&url.searchParams.get('review')==='unreviewed');
+      await pages[0].getByText('No trades match these filters.',{exact:false}).waitFor();
+      await pages[0].goBack();
+      await pages[0].getByRole('link',{name:'View performance for these dates',exact:true}).click();
+      await pages[0].waitForURL(url=>url.pathname==='/performance'&&url.searchParams.get('from')==='2026-09-01');
+      await pages[0].goto(base.replace('127.0.0.1','localhost')+'/?from=2027-01-01');
+      await pages[0].getByRole('link',{name:'All time',exact:true}).click();
+      await pages[0].waitForURL(url=>url.pathname==='/'&&!url.search);
+      assert.equal(await pages[0].getByLabel('From entry date (UTC)',{exact:true}).inputValue(),'');
       for (const [name,query] of [
         [/^Open \/ incomplete trades:/,'status=open'],
         [/^Closed trades missing P&L:/,'outcome=missing'],
