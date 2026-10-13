@@ -98,8 +98,17 @@ Consolidated CI does not replace testing your own database/Auth pairing locally.
 ## Journal follow-up (CP37)
 
 The dashboard links to all open/incomplete trades, closed trades missing P&L and
-closed trades awaiting review. Counts cover all of your accounts and all dates,
+closed trades awaiting review. Counts cover all of your accounts and the selected entry dates,
 including trades beyond the first journal page. A closed trade can appear in both
 missing-P&L and awaiting-review queues; counts should not be added together. Open
 trades are not necessarily errors. Saving a review updates the review count while
 leaving missing P&L unchanged. No new migration is required.
+
+## Dashboard entry dates (CP38)
+
+Use From/Through entry dates on the dashboard to limit metrics, follow-up counts
+and recent trades to one period. Both UTC boundary days are included; blank bounds
+are unrestricted and All time clears the period. Dates refer to entry time even
+when a trade closes later. Journal queue links, View all matching trades and
+View performance for these dates preserve the period. Invalid or reversed dates
+show an error instead of displaying broader results. No new migration is required.
