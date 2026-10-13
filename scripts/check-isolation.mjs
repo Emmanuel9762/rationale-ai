@@ -368,6 +368,16 @@ try {
       await pages[0].getByText('Details for record 5',{exact:true}).click();
       await pages[0].getByText('Comma, quoted "patience" and a second line.',{exact:true}).waitFor();
       assert.equal(JSON.stringify((await database.query('select * from trades order by id')).rows),beforeCsv,'preview cannot change stored trades');
+      const sampleDownload=await fetch(base+'/samples/rationaleai-import-ready.csv');
+      assert.equal(sampleDownload.status,200);
+      const sampleBytes=Buffer.from(await sampleDownload.arrayBuffer());
+      assert.equal(await pages[0].getByRole('link',{name:'Download import-ready CSV',exact:true}).getAttribute('href'),'/samples/rationaleai-import-ready.csv');
+      await pages[0].getByLabel('Trade CSV',{exact:true}).setInputFiles({name:'rationaleai-import-ready.csv',mimeType:'text/csv',buffer:sampleBytes});
+      await pages[0].getByRole('button',{name:'Preview CSV',exact:true}).click();
+      await pages[0].getByRole('status').filter({hasText:'30 records: 30 valid, 0 invalid, 2 repeated. No trades saved.'}).waitFor();
+      await pages[0].getByRole('form',{name:'Confirm CSV import',exact:true}).waitFor();
+      assert.equal(await pages[0].locator('input[name="allowRepeated"]').isChecked(),false);
+      assert.equal(JSON.stringify((await database.query('select * from trades order by id')).rows),beforeCsv);
       await pages[0].getByLabel('Trade CSV',{exact:true}).setInputFiles({name:'broken.csv',mimeType:'text/csv',buffer:Buffer.from('symbol,direction\nBAD,LONG')});
       assert.equal(await pages[0].getByRole('region',{name:'CSV results',exact:true}).count(),0,'changing files clears stale results');
       await pages[0].getByRole('button',{name:'Preview CSV',exact:true}).click();
