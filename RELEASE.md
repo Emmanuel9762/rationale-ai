@@ -1,7 +1,7 @@
 # Verification and release rehearsal
 
 This is a reviewable development increment, not a production deployment.
-CP35 consolidates CP26–34 on `main` and requires nine migrations through
+CP40 consolidates CP36–39 on the existing CP35 `main` baseline. It requires nine migrations through
 `0008_import_trade_links`. Earlier consolidation evidence below describes its
 historical commit only. Keep the existing database/Auth pairing; never rerun
 ownership linking for an already-linked journal.
@@ -13,7 +13,7 @@ If README.md is your only modified file, a named stash keeps it recoverable:
 
 ```fish
 git status --short --branch
-git stash push -m "README edits before CP35" -- README.md
+git stash push -m "README edits before CP40" -- README.md
 ```
 
 Inspect and preserve any other changes separately; do not reset or clean them.
@@ -86,6 +86,14 @@ Use http://localhost:3000, not the LAN IP or 127.0.0.1.
    select an entry-date range and follow a measured or missing-P&L count. Confirm
    the group, dates and outcome survive navigation and CSV export. Zero counts
    should open an empty result, not all trades.
+
+7. On Dashboard, choose a UTC entry-date range. Compare each follow-up count
+   with its linked journal results, then open performance for those dates. Confirm
+   dates survive both links. Try an empty period, then select All time.
+8. In a filtered journal (including page two if available), open a trade or its
+   review, save a review or edit, and choose Back to trades. Filters and page should
+   remain. A reviewed trade should leave an unreviewed queue; an empty later page
+   should offer Return to the first page. Confirm a direct trade URL still works.
 
 Record the verified commit SHA and pass/fail for these checks without including
 credentials, reset links or personal trade exports. Remote CI is separate evidence;

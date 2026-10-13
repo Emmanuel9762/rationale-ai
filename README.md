@@ -88,9 +88,9 @@ P&L count to inspect its trades. Group and entry dates carry into the journal an
 CSV export. Zero counts open an empty result. These views use current saved values,
 so later edits can change membership. No new migration is required.
 
-## Consolidated baseline (CP35)
+## Consolidated baseline (CP40)
 
-CP26–34 are merged on `main`. Fetch, switch successfully and fast-forward before
+CP26–39 are merged on `main`. Fetch, switch successfully and fast-forward before
 running `release:verify -- --expect-ref origin/main`; see RELEASE.md for the full
 Fish sequence and local acceptance. The schema still requires nine migrations.
 Consolidated CI does not replace testing your own database/Auth pairing locally.

@@ -887,3 +887,29 @@ Acceptance: filter Trade history, open a trade, save a review or edit, then choo
 Back to trades. Confirm the filters/page remain and membership reflects the save.
 Next logical checkpoint: consolidate the pending checkpoints and run the laptop
 acceptance sequence before adding another feature layer.
+
+
+## CP40 — consolidate CP36–39 on main
+
+Merged PRs #22–25 in dependency order with merge commits, preserving each bounded
+checkpoint commit. Their exact heads had successful CI checks before merging.
+The merged tree at 86d7709398ed5b684e183860be413453b524a660 is identical to the
+CP39 branch at 728e9c07c9c3b3a3488e347d32fb031f1c7cf3c5. This brings the import-ready
+CSV, dashboard follow-up queues and periods, and journal return context onto main.
+No feature branch was deleted and no local work was discarded.
+
+README and RELEASE now identify the consolidated baseline and add acceptance for
+period-scoped queues and returning from reviews/edits. CP40's own file changes are
+documentation only. Full CI on the final main commit is the integration gate;
+individual feature CI does not substitute for that check or laptop acceptance.
+No schema, dependency, environment or live database change; nine migrations remain
+required through 0008_import_trade_links. No production deployment was performed.
+
+Laptop acceptance is pending: follow RELEASE.md's success-chained Fish commands,
+run release:verify against origin/main, and record the verified SHA and pass/fail
+for the eight local checks. A failed checkout must stop the sequence. Never reset
+local edits or rerun identity linking just to reconcile branches.
+
+Next checkpoint should be driven by acceptance results: fix any reproduced issue
+before extending the product. Local database/Auth pairing and email delivery can
+only be confirmed in the user's environment.
