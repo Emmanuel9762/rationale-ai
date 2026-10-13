@@ -809,3 +809,28 @@ CP35 laptop acceptance remains pending; this checkpoint makes it easier to perfo
 
 Verified locally: all 68 tests, lint, typecheck, production build and diff checks
 pass. Full browser verification is provided by the checkpoint's GitHub CI run.
+
+## CP37 — dashboard journal follow-up
+
+The dashboard now exposes three counted queues: open/incomplete trades, closed
+trades missing P&L, and closed trades awaiting review. Links use the existing journal
+URL helper and owner-scoped filters. Review count is added to the existing dashboard
+aggregate query, so no extra round trip is introduced. Both exit fields are required
+for a closed trade; reviewedAt determines whether a reflection has been saved.
+Saving a review now explicitly invalidates the dashboard along with journal/detail
+and performance pages. Zero queues remain inspectable; the empty-journal message is
+separate from the no-follow-up message. Copy explains overlap and active open trades.
+
+Tests compare counts against export and paginated queues for >25 matching records,
+owner isolation, empty results and review-save transitions. The HTTP workflow checks
+that a saved review reduces the dashboard queue while missing P&L remains unchanged.
+Browser checks follow all three cards and a second user's zero queue. No schema,
+dependency, environment or live database change. CP37 is stacked on CP36.
+
+Acceptance: open Dashboard, follow each queue and compare its results. Save a review
+on a closed unreviewed trade, return to Dashboard and confirm that only its review
+queue membership changes. CP35's laptop acceptance remains unconfirmed.
+
+Verified locally: all 68 tests, lint, typecheck, a fresh production build and full
+HTTP isolation pass. The stale Turbopack cache was moved aside after an internal
+cache-read failure. Browser navigation is verified by the checkpoint CI gate.

@@ -1,5 +1,6 @@
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import Link from "next/link";
+import { journalHref, type JournalFilters } from "@/lib/journal-filters";
 import { db } from "@/db";
 import { tradeRepository } from "@/lib/trade-repository";
 import { formatPnl, tradeMetrics } from "@/lib/trade-metrics";
@@ -10,6 +11,11 @@ export default async function Home() {
   const [metrics, recent] = await Promise.all([
     tradeMetrics(db, user.id), tradeRepository(db).list(user.id),
   ]);
+  const followUps = [
+    { label: "Open / incomplete trades", count: metrics.open, filters: {status:"open"}, note: "Check entries that are still open or have incomplete exit details." },
+    { label: "Closed trades missing P&L", count: metrics.missingPnl, filters: {outcome:"missing"}, note: "These trades are excluded from measured performance until P&L is recorded." },
+    { label: "Closed trades awaiting review", count: metrics.awaitingReview, filters: {status:"closed",review:"unreviewed"}, note: "Reflect on the decision while the trade is still fresh." },
+  ] satisfies {label:string;count:number;filters:JournalFilters;note:string}[];
   const stats = [
     { label: "Recorded realized P&L", value: metrics.measured ? formatPnl(metrics.pnl) : "—", note: "Account currency" },
     { label: "Win rate", value: metrics.winRate, note: "Wins / closed trades with P&L" },
@@ -21,6 +27,14 @@ export default async function Home() {
     <div className="mx-auto max-w-6xl space-y-6 px-6 py-8">
       <p className="text-sm text-zinc-400">Your journal · All time · <Link className="underline" href="/trades?status=closed&review=unreviewed">Review closed trades</Link></p>
       <section aria-label="Trading metrics" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{stats.map(stat => <div key={stat.label} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5"><h2 className="text-sm text-zinc-400">{stat.label}</h2><p className="mt-2 break-words text-2xl font-semibold">{stat.value}</p><p className="mt-2 text-xs text-zinc-400">{stat.note}</p></div>)}</section>
+      <section aria-labelledby="follow-up-heading" className="space-y-3">
+        <h2 id="follow-up-heading" className="font-medium">Journal follow-up</h2>
+        <p className="text-sm text-zinc-400">All accounts, all time. A trade can need both P&amp;L and a review, so these counts overlap. Open trades may simply still be active.</p>
+        <div className="grid gap-4 md:grid-cols-3">{followUps.map(item => <Link key={item.label} href={journalHref(item.filters)} aria-label={`${item.label}: ${item.count}`} className="rounded-xl border border-zinc-800 p-5 hover:border-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-100">
+          <h3 className="text-sm underline">{item.label}</h3><p className="mt-2 text-2xl font-semibold tabular-nums">{item.count}</p><p className="mt-2 text-sm text-zinc-400">{item.note}</p>
+        </Link>)}</div>
+        {followUps.every(item => item.count === 0) && <p className="text-sm text-zinc-400">{metrics.total === 0 ? "Log or import trades to build your journal." : "No trades in these follow-up queues. This does not assess the quality of your trading."}</p>}
+      </section>
       <section className="rounded-xl border border-zinc-800 p-5"><h2 className="font-medium">What these numbers include</h2><p className="mt-2 text-sm text-zinc-400">{metrics.measured} closed trades have recorded P&L. {metrics.missingPnl} closed trades still need P&L. Open or incomplete trades are excluded from performance metrics. Break-even trades count in win rate. All P&L entries must use the same account currency; no currency conversion is applied. ∞ means recorded profits with no recorded losses.</p></section>
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5"><div className="flex items-center justify-between"><h2 className="font-medium">Recent trades</h2><Link href="/trades" className="text-sm underline">View all</Link></div>
         {!recent.trades.length ? <p className="mt-4 text-zinc-400">Your journal is empty. Log your first trade to start reviewing your decisions.</p> : <ul className="mt-4 divide-y divide-zinc-800">{recent.trades.slice(0, 5).map(trade => <li key={trade.id}><Link className="flex flex-wrap justify-between gap-3 py-4" href={`/trades/${trade.id}`}><span>{trade.symbol} <span className="text-sm text-zinc-400">{trade.direction}</span></span><span className="text-sm text-zinc-400">{trade.entryTime.toISOString().slice(0, 10)} · {trade.exitTime && trade.exitPrice !== null ? "Closed" : "Open / incomplete"}</span></Link></li>)}</ul>}
