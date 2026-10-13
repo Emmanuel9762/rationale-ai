@@ -21,6 +21,7 @@ test("export includes all filtered pages, scopes owners and refuses rather than 
     assert.equal((await repo.exportRows(owners[0].id)).length,EXPORT_LIMIT);
     await db.insert(trades).values({...base,symbol:"OTHER"});
     await assert.rejects(repo.exportRows(owners[0].id),ExportLimitError);
+    assert.equal(await repo.count(owners[0].id),EXPORT_LIMIT+1);
     assert.equal((await repo.exportRows(owners[0].id,{symbol:"EURUSD"})).length,26);
   } finally {await client.close();}
 });

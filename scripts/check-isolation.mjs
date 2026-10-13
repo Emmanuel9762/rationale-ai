@@ -173,11 +173,15 @@ try {
   await database.query("insert into trades (account_id,symbol,direction,entry_price,quantity,entry_time) select $1,'ONLY_A','LONG',1,1,'2026-01-01 12:00:00'::timestamp from generate_series(1,25)",[aTrade.account_id]);
   const filteredPath='/trades?symbol=ONLY_A&direction=LONG&status=open&from=2026-01-01&to=2026-01-01';
   const filteredHtml=await(await a.request(filteredPath)).text();
+  assert.ok(filteredHtml.includes('26 matching trades · 25 on this page.'));
   const nextTag=(filteredHtml.match(/<a\b[^>]*>Next<\/a>/g)??[])[0];assert.ok(nextTag,'filtered first page has Next');
   const nextPath=decode(nextTag.match(/href="([^"]+)"/)[1]);
   const nextUrl=new URL(nextPath,base);assert.equal(nextUrl.searchParams.get('page'),'2');
   for(const key of ['symbol','direction','status','from','to'])assert.equal(nextUrl.searchParams.get(key),new URL(filteredPath,base).searchParams.get(key));
   const secondHtml=await(await a.request(nextPath)).text();assert.ok(!/>Next<\/a>/.test(secondHtml));assert.match(secondHtml,/ONLY_A<\/a>/);
+  assert.ok(secondHtml.includes('26 matching trades · 1 on this page.'));
+  const beyondHtml=await(await a.request(filteredPath+'&page=99')).text();
+  assert.ok(beyondHtml.includes('26 matching trades · 0 on this page.'));
   const contextualLink=decode(secondHtml.match(/href="([^"]+)"[^>]*>ONLY_A<\/a>/)[1]);
   assert.equal(new URL(contextualLink,base).searchParams.get('returnTo'),nextPath);
   const contextualHtml=await(await a.request(contextualLink)).text();
@@ -188,8 +192,8 @@ try {
   const form=filteredHtml.match(/<form\b[^>]*>[\s\S]*?<\/form>/)[0];assert.match(form,/method="[gG][eE][tT]"/);assert.ok(!/name="page"/.test(form),'Apply resets pagination');
   assert.match(await(await a.request('/trades?symbol=MISSING')).text(),/No trades match these filters/);
   assert.match(await(await a.request('/trades?page=99&symbol=ONLY_A')).text(),/Return to the first page/);
-  const invalidHtml=await(await a.request('/trades?from=2026-02-30')).text();assert.match(invalidHtml,/Check your filters/);assert.ok(!invalidHtml.includes('<table'));
-  const otherFiltered=await(await b.request(filteredPath)).text();assert.match(otherFiltered,/No trades match these filters/);assert.ok(!otherFiltered.includes('<table'));
+  const invalidHtml=await(await a.request('/trades?from=2026-02-30')).text();assert.match(invalidHtml,/Check your filters/);assert.ok(!invalidHtml.includes('<table'));assert.ok(!invalidHtml.includes('Journal result count'));
+  const otherFiltered=await(await b.request(filteredPath)).text();assert.match(otherFiltered,/No trades match these filters/);assert.ok(!otherFiltered.includes('<table'));assert.ok(otherFiltered.includes('0 matching trades · 0 on this page.'));
   console.log('Journal HTTP filters: preserved pagination links, first-page apply, empty/error states and owner isolation passed.');
   const datedDashboard=await(await a.request('/?from=2026-01-01&to=2026-01-01')).text();
   assert.ok(datedDashboard.includes('/trades?status=closed&amp;review=unreviewed&amp;from=2026-01-01&amp;to=2026-01-01'));
@@ -355,6 +359,7 @@ try {
       const path=new URL(pages[0].url()).pathname;await pages[0].reload();assert.ok((await pages[0].textContent('body')).includes('A private rationale'));
       const journalContext='/trades?symbol=ONLY_A&review=unreviewed&from=2026-01-01&to=2026-01-01';
       await pages[0].goto(base.replace('127.0.0.1','localhost')+journalContext);
+      await pages[0].getByRole('status',{name:'Journal result count',exact:true}).filter({hasText:'1 matching trade · 1 on this page.'}).waitFor();
       await pages[0].getByRole('link',{name:'Unreviewed',exact:true}).click();
       await pages[0].getByRole('heading',{name:'Trade review',exact:true}).waitFor();
       assert.equal(new URL(pages[0].url()).searchParams.get('returnTo'),journalContext);
@@ -387,6 +392,7 @@ try {
       await pages[0].getByRole('link',{name:'Back to trades',exact:true}).click();
       await pages[0].getByText('No trades match these filters.',{exact:false}).waitFor();
       assert.equal(new URL(pages[0].url()).pathname+new URL(pages[0].url()).search,journalContext);
+      await pages[0].getByRole('status',{name:'Journal result count',exact:true}).filter({hasText:'0 matching trades · 0 on this page.'}).waitFor();
       await editTab.close();
       console.log('Journal context browser: review, edit save, conflict reload and return to updated queue passed.');
 

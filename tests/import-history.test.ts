@@ -26,6 +26,8 @@ test('batch history links exact trades across pages, exports and edits without e
     const repo=tradeRepository(db);
     const first=await repo.list(a.id,1,{import:saved.id});const second=await repo.list(a.id,2,{import:saved.id});
     assert.equal(first.trades.length,25);assert.equal(first.hasNext,true);assert.equal(second.trades.length,4);assert.equal(second.hasNext,false);
+    assert.equal(await repo.count(a.id,{import:saved.id}),29);
+    assert.equal(await repo.count(b.id,{import:saved.id}),0);
     const exported=await repo.exportRows(a.id,{import:saved.id});
     assert.equal(new Set([...first.trades,...second.trades].map(t=>t.id)).size,29);
     assert.deepEqual(exported.map(t=>t.id),[...first.trades,...second.trades].map(t=>t.id));
@@ -36,6 +38,7 @@ test('batch history links exact trades across pages, exports and edits without e
     await db.update(trades).set({symbol:'EDITED',revision:1,notes:'Later note'}).where(eq(trades.id,trade.id));
     const filtered={import:saved.id,symbol:'EDITED',from:'2026-09-01',to:'2026-09-01'};
     assert.equal((await repo.exportRows(a.id,filtered))[0].notes,'Later note');
+    assert.equal(await repo.count(a.id,filtered),1);
     assert.deepEqual(parseJournalFilters(Object.fromEntries(new URL(journalHref(filtered,2),'https://example.test').searchParams)).filters,filtered);
     assert.equal((await repo.exportRows(a.id,{import:saved.id,status:'closed'})).length,0);
     assert.deepEqual(await importOwnedCsv(db,a.id,form),saved);assert.equal((await db.select().from(tradeImportRows)).length,58);
@@ -46,10 +49,12 @@ test('batch history links exact trades across pages, exports and edits without e
     assert.equal((await importHistory(db,a.id)).imports[0].linkedCount,29);
     assert.equal((await repo.exportRows(a.id,{import:saved.id})).length,29);
     assert.equal((await repo.exportRows(b.id,{import:saved.id})).length,0);
+    assert.equal(await repo.count(b.id,{import:saved.id}),0);
     // CP30 receipts have no persisted links. A replay must neither insert nor guess them.
     await db.delete(tradeImportRows).where(eq(tradeImportRows.importId,saved.id));
     assert.deepEqual(await importOwnedCsv(db,a.id,form),saved);
     assert.equal((await importHistory(db,a.id)).imports[0].linkedCount,0);
+    assert.equal(await repo.count(a.id,{import:saved.id}),0);
     assert.equal((await importHistory(db,a.id)).imports[0].originalCount,29);
     assert.equal((await repo.exportRows(a.id,{import:saved.id})).length,0);
     const older=await db.insert(tradeImports).values(Array.from({length:26},(_,i)=>({userId:a.id,accountId:trade.accountId,payloadHash:`legacy-${i}`,rowCount:3,createdAt:new Date('2020-01-01')}))).returning();

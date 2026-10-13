@@ -120,3 +120,12 @@ page. Back to trades returns to that selection after review saves, trade edits o
 conflict reloads. The selection is refreshed, so reviewed trades leave an unreviewed
 queue and edits may move a trade out of its old filters. If a page becomes empty,
 use Return to the first page. Direct trade URLs still return to the full journal.
+
+## Journal counts (CP41)
+
+Trade history shows the total matching trades across all pages alongside the
+number on the current page. Counts use the same filters and ownership scope as
+journal rows and export, including import batches. An empty later page can still
+have matches on earlier pages; use Return to the first page. Invalid filters show
+an error without a count. Counts describe current records, not original import
+receipt totals, and are not limited by the CSV export cap.

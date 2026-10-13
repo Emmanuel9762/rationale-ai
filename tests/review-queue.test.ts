@@ -18,6 +18,7 @@ test("review queue filters before pagination, excludes open/other-owner trades a
     await db.insert(trades).values(Array.from({length:26},()=>base));
     await db.insert(trades).values([{...base,reviewedAt:new Date()}, {...base,exitPrice:null,exitTime:null}, {...base,exitTime:null}, {...base,accountId:accounts[1].id}]);
     const repo=tradeRepository(db), filter={status:"closed",review:"unreviewed"} as const;
+    assert.equal(await repo.count(owners[0].id,filter),26);
     const metrics=await tradeMetrics(db,owners[0].id);
     assert.equal(metrics.awaitingReview,26);assert.equal(metrics.open,2);assert.equal(metrics.missingPnl,27);
     assert.equal((await tradeMetrics(db,owners[1].id)).awaitingReview,1);
@@ -29,6 +30,7 @@ test("review queue filters before pagination, excludes open/other-owner trades a
     assert.equal(new Set([...page1.trades,...page2.trades].map(t=>t.id)).size,26);
     assert.equal((await repo.list(owners[1].id,1,filter)).trades.length,1);
     await saveOwnedReview(db,owners[0].id,page1.trades[0].id,{planAdherence:"partly",reviewWentWell:"Patience",reviewImprove:null},0);
+    assert.equal(await repo.count(owners[0].id,filter),25);
     const after=await tradeMetrics(db,owners[0].id);
     assert.equal(after.awaitingReview,25);assert.equal(after.missingPnl,27);assert.equal(after.open,2);
     const updated=await repo.list(owners[0].id,1,filter);assert.equal(updated.trades.length,25);assert.equal(updated.hasNext,false);

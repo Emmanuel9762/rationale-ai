@@ -913,3 +913,37 @@ local edits or rerun identity linking just to reconcile branches.
 Next checkpoint should be driven by acceptance results: fix any reproduced issue
 before extending the product. Local database/Auth pairing and email delivery can
 only be confirmed in the user's environment.
+
+## CP41 — journal matching-trade counts
+
+Trade history now shows the owner-scoped total across matching pages and the
+number of records displayed on this page. Filters include import batch, outcome,
+review, adherence, labels, direction, lifecycle and UTC entry dates. Counts use
+current saved records, not historical import receipt totals. Invalid filters skip
+both reads and hide the count; an out-of-range page preserves its matching total
+and the existing first-page recovery link. The result count is a status region.
+
+A shared condition builder supplies list, count and export predicates. Only the
+journal adds a SQL aggregate query, run alongside its existing bounded page read;
+no full trade collection is transferred to calculate a count. List/count are
+separate reads, not a transaction snapshot: concurrent writes may briefly change
+membership between them. Existing pagination continues to use its lookahead row.
+Dashboard and export queries are unchanged. No schema, dependency, environment or
+live database change; nine migrations remain required.
+
+Coverage extends the existing tests for multiple accounts/owners, exact-full and
+overflow pages, UTC boundaries, all performance drill-down groups, import linkage
+(including foreign and legacy links), review-save changes and totals exceeding
+the export limit. HTTP checks verify first/second/out-of-range pages, invalid input
+and another owner's empty results. Browser coverage checks one matching trade
+becoming zero after a saved review and return to its unreviewed queue.
+
+Acceptance: inspect an imported batch with more than 25 records; total should
+remain the same across pages while the displayed count changes. Narrow filters,
+then save a review and return to the unreviewed selection to confirm the new count.
+CP40 laptop acceptance remains unconfirmed. Next priority is completing that local
+acceptance and addressing any reproduced issues before broader product changes.
+
+Verified locally: all 70 tests, the targeted export-limit count check, lint,
+typecheck, final production build, full HTTP isolation and diff checks pass.
+Full Chromium verification is provided by the checkpoint CI gate.
