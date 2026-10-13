@@ -1,5 +1,6 @@
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import Link from "next/link";
+import { tradeContextHref } from "@/lib/journal-navigation";
 import { db } from "@/db";
 import { EXPORT_LIMIT, tradeRepository } from "@/lib/trade-repository";
 import { OUTCOME_LABELS } from "@/lib/outcome-labels";
@@ -39,7 +40,7 @@ export default async function TradesPage({ searchParams }: { searchParams: Promi
       {errors.length > 0 ? <div role="alert" className="rounded-xl border border-red-900 p-4 text-red-300"><p>Check your filters:</p><ul className="list-inside list-disc">{errors.map(error => <li key={error}>{error}</li>)}</ul></div> : <>
       {!result.trades.length ? <p className="rounded-xl border border-zinc-800 p-6">{page > 1 ? <>No trades on this page. <Link className="underline" href={journalHref(filters)}>Return to the first page</Link>.</> : active ? <>No trades match these filters. <Link className="underline" href="/trades">Clear filters</Link> to see your journal.</> : <>No trades yet. <Link className="underline" href="/trades/new">Log a trade</Link> to start your journal.</>}</p> : <div className="overflow-x-auto rounded-xl border border-zinc-800"><table className="w-full text-left text-sm">
         <thead className="bg-zinc-900 text-zinc-400"><tr>{["Symbol", "Direction", "Entry time (UTC)", "Status", "Recorded P&L", "Review"].map(label => <th key={label} className="p-4">{label}</th>)}</tr></thead>
-        <tbody>{result.trades.map(trade => <tr key={trade.id} className="border-t border-zinc-800"><td className="p-4"><Link className="font-medium underline" href={`/trades/${trade.id}`}>{trade.symbol}</Link></td><td className="p-4">{trade.direction}</td><td className="whitespace-nowrap p-4">{trade.entryTime.toISOString().slice(0, 16).replace("T", " ")}</td><td className="p-4">{trade.exitTime && trade.exitPrice !== null ? "Closed" : "Open / incomplete"}</td><td className="p-4">{trade.pnl ?? "Not recorded"}</td><td className="p-4"><Link className="underline" href={`/trades/${trade.id}#review`}>{trade.reviewedAt ? "Reviewed" : "Unreviewed"}</Link></td></tr>)}</tbody>
+        <tbody>{result.trades.map(trade => <tr key={trade.id} className="border-t border-zinc-800"><td className="p-4"><Link className="font-medium underline" href={tradeContextHref(trade.id, journalHref(filters, page))}>{trade.symbol}</Link></td><td className="p-4">{trade.direction}</td><td className="whitespace-nowrap p-4">{trade.entryTime.toISOString().slice(0, 16).replace("T", " ")}</td><td className="p-4">{trade.exitTime && trade.exitPrice !== null ? "Closed" : "Open / incomplete"}</td><td className="p-4">{trade.pnl ?? "Not recorded"}</td><td className="p-4"><Link className="underline" href={`${tradeContextHref(trade.id, journalHref(filters, page))}#review`}>{trade.reviewedAt ? "Reviewed" : "Unreviewed"}</Link></td></tr>)}</tbody>
       </table></div>}
       <nav className="flex gap-5 text-sm" aria-label="Pagination">{page > 1 && <Link href={journalHref(filters, page - 1)}>Previous</Link>}<span>Page {page}</span>{result.hasNext && page < 100000 && <Link href={journalHref(filters, page + 1)}>Next</Link>}</nav>
       </>}

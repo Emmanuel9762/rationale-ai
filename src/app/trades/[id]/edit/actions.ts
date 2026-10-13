@@ -1,4 +1,5 @@
 "use server";
+import { tradeContextHref } from "@/lib/journal-navigation";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
@@ -6,7 +7,7 @@ import { requireCurrentUser } from "@/lib/auth/current-user";
 import { parseTradeInput, TradeInputError, type TradeFormState } from "@/lib/trade-input";
 import { updateOwnedTrade } from "@/lib/trade-writes";
 import { draftValues, parseRevision, TradeConflictError } from "@/lib/trade-version";
-export async function updateTrade(id: string, _previous: TradeFormState, data: FormData): Promise<TradeFormState> {
+export async function updateTrade(id: string, returnTo: string, _previous: TradeFormState, data: FormData): Promise<TradeFormState> {
   const user = await requireCurrentUser();
   let revision: number | undefined;
   const values = draftValues(data, ["symbol", "direction", "entryPrice", "quantity", "entryTime", "exitPrice", "exitTime", "pnl", "setup", "rationale", "notes"]);
@@ -22,5 +23,5 @@ export async function updateTrade(id: string, _previous: TradeFormState, data: F
   revalidatePath("/trades");
   revalidatePath(`/trades/${id}`);
   revalidatePath(`/trades/${id}/edit`);
-  redirect(`/trades/${id}`);
+  redirect(tradeContextHref(id, returnTo));
 }

@@ -859,3 +859,31 @@ All time. Try a period with no entries and confirm zero/empty results.
 Verified locally: all 68 tests, lint, typecheck, a fresh production build and full
 HTTP isolation pass. A corrupt local Turbopack cache was moved aside before the
 successful build. Full browser navigation is checked by the checkpoint CI gate.
+
+## CP39 — retain journal context through trade review and editing
+
+Trade history detail/review links now carry their canonical journal selection,
+including filters, import batch and page. Detail and edit back links, edit-save
+redirects and stale-draft reload links retain it. Returning queries current data:
+a saved review leaves an unreviewed queue, and an empty later page still offers
+the existing first-page recovery link. Direct trade URLs retain the default full
+journal return. This increment covers journal-origin navigation.
+
+A shared navigation helper accepts only the journal route and rebuilds known,
+validated filters and bounded pagination. Invalid, repeated or external return
+contexts fall back to /trades. Unknown parameters are discarded. The server action
+normalizes the destination again before redirecting; authorization and revision
+checks remain in place. No schema, dependency or environment changes.
+
+Verified locally: 70 tests, lint, typecheck, production build, full HTTP isolation
+and diff checks pass. HTTP coverage verifies filtered page-two detail/return links
+and an unsafe destination fallback. Browser coverage follows a filtered review
+link, saves a review, exercises stale edit/review reloads and an edit save, then
+returns to the now-empty original queue. Full browser execution uses the CI gate.
+CP39 is stacked on CP38. Nine migrations remain required; no live database changes
+were made and laptop acceptance remains unconfirmed.
+
+Acceptance: filter Trade history, open a trade, save a review or edit, then choose
+Back to trades. Confirm the filters/page remain and membership reflects the save.
+Next logical checkpoint: consolidate the pending checkpoints and run the laptop
+acceptance sequence before adding another feature layer.

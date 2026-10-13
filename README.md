@@ -112,3 +112,11 @@ are unrestricted and All time clears the period. Dates refer to entry time even
 when a trade closes later. Journal queue links, View all matching trades and
 View performance for these dates preserve the period. Invalid or reversed dates
 show an error instead of displaying broader results. No new migration is required.
+
+## Return to your journal selection (CP39)
+
+Opening a trade or its review from Trade history retains the active filters and
+page. Back to trades returns to that selection after review saves, trade edits or
+conflict reloads. The selection is refreshed, so reviewed trades leave an unreviewed
+queue and edits may move a trade out of its old filters. If a page becomes empty,
+use Return to the first page. Direct trade URLs still return to the full journal.
