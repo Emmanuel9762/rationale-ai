@@ -36,6 +36,7 @@ test("performance groups preserve ownership, lifecycle exclusions, sample sizes 
       {...base,...close,accountId:accounts[2].id,setup:"SECRET_SETUP",symbol:"SECRET",pnl:"80000"},
     ]);
     const setups = await tradeBreakdown(db,owner.id,"setup");
+    assert.deepEqual(await tradeBreakdown(db,owner.id,"setup",{},2),setups.slice(0,2));
     const breakout = setups.find(row=>row.group==="Breakout")!;
     assert.equal(breakout.total,8);assert.equal(breakout.closed,5);
     assert.equal(breakout.open,3);assert.equal(breakout.missingPnl,1);

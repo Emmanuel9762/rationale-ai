@@ -69,15 +69,16 @@ export async function tradeMetrics(database: Pick<typeof db, "select">, userId: 
   return { ...summarize(result), awaitingReview: result.awaitingReview };
 }
 
-export async function tradeBreakdown(database: Pick<typeof db, "select">, userId: string, by: TradeGroupDimension, period: Pick<JournalFilters, "from" | "to"> = {}) {
+export async function tradeBreakdown(database: Pick<typeof db, "select">, userId: string, by: TradeGroupDimension, period: Pick<JournalFilters, "from" | "to"> = {}, maxGroups?: number) {
   const group = tradeGroup(by);
-  const rows = await database.select({ group, ...metricColumns() }).from(trades)
+  const query = database.select({ group, ...metricColumns() }).from(trades)
     .innerJoin(tradingAccounts, eq(trades.accountId, tradingAccounts.id))
     .where(and(
       eq(tradingAccounts.userId, userId),
       ...entryPeriodConditions(period),
     ))
     .groupBy(group).orderBy(asc(group));
+  const rows = await (maxGroups === undefined ? query : query.limit(maxGroups));
   return rows.map(row => ({ group: row.group, ...summarize(row) }));
 }
 

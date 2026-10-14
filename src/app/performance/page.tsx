@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PERFORMANCE_EXPORT_LIMIT } from "@/lib/performance-csv";
 import { db } from "@/db";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import { formatPnl, tradeBreakdown } from "@/lib/trade-metrics";
@@ -58,6 +59,7 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
         <Link className="underline" href="/performance">All time</Link>
         {!errors.length && <Link className="underline" href={journalHref(period)}>View matching trades</Link>}
       </form>
+      {!errors.length && <p className="text-sm text-zinc-400"><a className="underline" href={journalHref(period).replace("/trades", "/performance/export")}>Export performance (CSV)</a> · Up to {PERFORMANCE_EXPORT_LIMIT} group rows across all three breakdowns. Groups overlap across dimensions; do not add their totals together. This summary cannot be imported as trades. Missing metrics are blank; ∞ means no recorded losses. Formula-like labels receive a protective apostrophe.</p>}
       <div className="space-y-2 rounded-xl border border-zinc-800 p-5 text-sm text-zinc-300">
         <p>Win rate is wins divided by closed trades with recorded P&L. Wins, losses and break-even counts add up to the measured sample. Break-even trades count in the sample but are not wins. A closed trade has both an exit price and exit time.</p>
         <p>Open / incomplete trades and closed trades missing P&L are excluded from performance metrics. Win rate and recorded P&L show a dash when there are no measured results.</p>

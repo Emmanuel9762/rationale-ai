@@ -230,6 +230,19 @@ try {
   assert.match(datedPerformance,/href="\/trades\?from=2026-01-01&amp;to=2026-01-01"/);
   assert.match(datedPerformance,/href="\/trades\?setup=OWNER_SETUP&amp;from=2026-01-01&amp;to=2026-01-01"/);
   assert.match(datedPerformance,/By plan adherence/);assert.match(datedPerformance,/Followed my plan/);
+  const performanceExportPath='/performance/export?from=2026-01-01&to=2026-01-01';
+  const reportResponse=await a.request(performanceExportPath);assert.equal(reportResponse.status,200);
+  assert.match(reportResponse.headers.get('content-type'),/text\/csv/);assert.match(reportResponse.headers.get('cache-control'),/private, no-store/);
+  assert.equal(reportResponse.headers.get('x-content-type-options'),'nosniff');assert.match(reportResponse.headers.get('content-disposition'),/rationale-performance.csv/);
+  const reportCsv=await reportResponse.text();
+  assert.ok(reportCsv.includes('"setup","OWNER_SETUP","false","2026-01-01","2026-01-01","1","0","0","1","1","0","0","100.0%","12.34"'));
+  assert.ok(!reportCsv.includes('ONLY_B'));assert.ok(!reportCsv.includes('PRIVATE_REVIEW'));
+  const otherReport=await(await b.request(performanceExportPath)).text();assert.ok(otherReport.includes('ONLY_B'));assert.ok(!otherReport.includes('OWNER_SETUP'));
+  assert.equal(await(await a.request(performanceExportPath+'&symbol=ignored')).text(),reportCsv);
+  assert.equal((await(await a.request('/performance/export?from=2027-01-01')).text()).trim().split('\r\n').length,1);
+  for(const query of ['from=2026-02-30','from=2026-02-01&to=2026-01-01','from=2026-01-01&from=2026-01-02']) {
+    const rejected=await a.request('/performance/export?'+query);assert.equal(rejected.status,400);assert.match(rejected.headers.get('cache-control'),/no-store/);
+  }
   const measuredQuery='setup=OWNER_SETUP&outcome=measured&from=2026-01-01&to=2026-01-01';
   assert.ok(datedPerformance.includes('/trades?'+measuredQuery.replaceAll('&','&amp;')));
   assert.ok((await(await a.request('/trades?'+measuredQuery)).text()).includes(`href="${tradePath}?returnTo=`));
@@ -284,11 +297,14 @@ try {
   assert.equal((await a.request('/trades/export?review=bad')).status,400);
   assert.equal((await a.request('/trades/export?symbol=ONLY_A&symbol=ONLY_B')).status,400);
   const emptyCsv=await(await a.request('/trades/export?symbol=MISSING')).text();assert.equal(emptyCsv.trim().split('\r\n').length,1);
-  await database.query("insert into trades(account_id,symbol,direction,entry_price,quantity,entry_time) select $1,'EXPORT_LIMIT','LONG',1,1,'2026-01-01'::timestamp from generate_series(1,2001)",[aTrade.account_id]);
+  await database.query("insert into trades(account_id,symbol,direction,entry_price,quantity,entry_time,setup) select $1,'EXPORT_LIMIT','LONG',1,1,'2026-01-01'::timestamp,'PERF_LIMIT_'||g from generate_series(1,2001) g",[aTrade.account_id]);
   assert.equal((await a.request('/trades/export?symbol=EXPORT_LIMIT')).status,422);
+  assert.equal((await a.request('/performance/export')).status,422);
+  console.log('Performance export HTTP: owner scope, dates, headers, empty/invalid requests and combined group cap passed.');
   console.log('Export HTTP: all filtered pages, private attachment headers, owner isolation, invalid/empty/oversized responses passed.');
   await a.submit('/account',{});
   assert.equal((await a.request('/trades/export')).headers.get('location'),'/sign-in');
+  assert.equal((await a.request('/performance/export')).headers.get('location'),'/sign-in');
   const deniedReview=await a.submit(tradePath,review,reviewHtml);assert.equal(deniedReview.headers.get('location'),'/sign-in');
   assert.equal((await database.query('select review_improve from trades where id=$1',[aTrade.id])).rows[0].review_improve,'Revised reflection');
   const denied=await a.submit(editPath,{...input,notes:'SIGNED OUT'},editHtml);assert.equal(denied.headers.get('location'),'/sign-in');
@@ -511,6 +527,12 @@ try {
       await pages[0].getByRole('link',{name:'BATCH_BROWSER',exact:true}).waitFor();
       console.log('CSV import browser: confirm, save, reload/replay and journal visibility passed.');
       await pages[0].goto(base.replace('127.0.0.1','localhost')+'/performance?from=2026-09-01&to=2026-09-01');
+      const reportDownloadEvent=pages[0].waitForEvent('download');
+      await pages[0].getByRole('link',{name:'Export performance (CSV)',exact:true}).click();
+      const reportDownload=await reportDownloadEvent;assert.equal(reportDownload.suggestedFilename(),'rationale-performance.csv');
+      const browserReport=await readFile(await reportDownload.path(),'utf8');
+      assert.ok(browserReport.includes('"symbol","BATCH_BROWSER","false","2026-09-01","2026-09-01","1","0","0","1","1","0","0","100.0%","2.00"'));
+      assert.ok(!browserReport.includes('ONLY_A'));
       await pages[0].getByRole('link',{name:'View 0 closed trades without P&L for symbol: BATCH_BROWSER',exact:true}).click();
       await pages[0].getByText('No trades match these filters.',{exact:false}).waitFor();
       assert.equal(new URL(pages[0].url()).searchParams.get('outcome'),'missing');
