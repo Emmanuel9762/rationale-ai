@@ -40,6 +40,7 @@ test("performance groups preserve ownership, lifecycle exclusions, sample sizes 
     assert.equal(breakout.total,8);assert.equal(breakout.closed,5);
     assert.equal(breakout.open,3);assert.equal(breakout.missingPnl,1);
     assert.equal(breakout.measured,4);assert.equal(breakout.wins,2);
+    assert.equal(breakout.losses,1);assert.equal(breakout.breakeven,1);
     assert.equal(breakout.winRate,"50.0%");assert.equal(breakout.pnl,"0.20");
     assert.equal(breakout.averagePnl,"0.05");assert.equal(breakout.averageWin,"0.15");
     assert.equal(breakout.averageLoss,"0.10");assert.equal(breakout.profitFactor,"3.00");
@@ -49,13 +50,14 @@ test("performance groups preserve ownership, lifecycle exclusions, sample sizes 
     assert.equal(symbols.length,2);
     assert.deepEqual(symbols.find(row=>row.group==="EURUSD"),{...breakout,group:"EURUSD"});
     const unmeasured = symbols.find(row=>row.group==="GBPUSD")!;
+    assert.equal(unmeasured.wins+unmeasured.losses+unmeasured.breakeven,0);
     assert.equal(unmeasured.measured,0);assert.equal(unmeasured.winRate,"—");
     assert.equal(unmeasured.averagePnl,null);assert.equal(unmeasured.averageWin,null);
     assert.equal(unmeasured.averageLoss,null);assert.equal(unmeasured.profitFactor,"—");
     for(const rows of [setups,symbols]) {
       assert.ok(!rows.some(row=>row.group?.includes("SECRET")));
       const overall = await tradeMetrics(db,owner.id);
-      for(const field of ["total","closed","open","measured","missingPnl","wins"] as const) {
+      for(const field of ["total","closed","open","measured","missingPnl","wins","losses","breakeven"] as const) {
         assert.equal(rows.reduce((sum,row)=>sum+row[field],0),overall[field]);
       }
     }

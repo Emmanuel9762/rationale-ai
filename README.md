@@ -129,3 +129,10 @@ journal rows and export, including import batches. An empty later page can still
 have matches on earlier pages; use Return to the first page. Invalid filters show
 an error without a count. Counts describe current records, not original import
 receipt totals, and are not limited by the CSV export cap.
+
+## Outcome counts in Performance (CP42)
+
+Each performance group shows winning, losing and break-even trade counts. These
+partition its closed trades with recorded P&L; missing P&L and incomplete trades
+remain separate. Select a count to inspect that outcome in the journal with the
+group and UTC entry dates preserved. A zero count opens an empty matching set.

@@ -947,3 +947,25 @@ acceptance and addressing any reproduced issues before broader product changes.
 Verified locally: all 70 tests, the targeted export-limit count check, lint,
 typecheck, final production build, full HTTP isolation and diff checks pass.
 Full Chromium verification is provided by the checkpoint CI gate.
+
+## CP42 — performance outcome counts and drill-downs
+
+Performance setup, symbol and adherence groups now show Wins, Losses and Break-even
+counts, linked to those exact journal/export subsets with selected entry dates.
+Losses are counted in the existing SQL aggregate; break-even is the remainder of
+the measured sample after wins and losses. Thus no extra aggregate query is added.
+Missing P&L and incomplete trades cannot enter these outcome counts. Zero counts
+remain inspectable. Monetary calculations retain PostgreSQL decimal precision.
+
+Expanded fixture coverage compares all seven group subsets against journal,
+count and export results, including empty groups, multiple owners, missing labels
+and period boundaries. HTTP checks verify outcome links and Chromium checks follow
+a winning and zero break-even sample. No schema, dependency or environment change.
+
+The user reported everything seems good before this checkpoint; recorded as a
+local smoke-check pass, not evidence that every RELEASE.md acceptance item ran.
+Acceptance: select a period in Performance, check wins + losses + break-even equals
+the measured sample, then follow a nonzero and zero outcome count.
+
+Verified locally: 70 tests, lint, typecheck, production build, full HTTP isolation
+and diff checks pass. Browser outcome navigation is covered by the CI gate.

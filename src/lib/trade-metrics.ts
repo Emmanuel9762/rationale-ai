@@ -18,6 +18,7 @@ function metricColumns() {
     closed: sql<number>`count(*) filter (where ${closed})::int`,
     measured: sql<number>`count(*) filter (where ${measured})::int`,
     wins: sql<number>`count(*) filter (where ${winning})::int`,
+    losses: sql<number>`count(*) filter (where ${losing})::int`,
     pnl: sql<string>`coalesce(sum(${trades.pnl}) filter (where ${measured}), 0)::text`,
     grossProfit: sql<string>`${grossProfit}::text`,
     grossLoss: sql<string>`${grossLoss}::text`,
@@ -31,7 +32,7 @@ function metricColumns() {
 }
 
 type MetricRow = {
-  total: number; closed: number; measured: number; wins: number;
+  total: number; closed: number; measured: number; wins: number; losses: number;
   pnl: string; grossProfit: string; grossLoss: string;
   averagePnl: string | null; averageWin: string | null; averageLoss: string | null;
   profitFactorValue: string | null;
@@ -40,6 +41,7 @@ function summarize(result: MetricRow) {
   const { profitFactorValue, ...metrics } = result;
   return {
     ...metrics,
+    breakeven: result.measured - result.wins - result.losses,
     open: result.total - result.closed,
     missingPnl: result.closed - result.measured,
     winRate: result.measured ? `${(result.wins / result.measured * 100).toFixed(1)}%` : "—",
