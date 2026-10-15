@@ -178,6 +178,11 @@ try {
   const nextPath=decode(nextTag.match(/href="([^"]+)"/)[1]);
   const nextUrl=new URL(nextPath,base);assert.equal(nextUrl.searchParams.get('page'),'2');
   for(const key of ['symbol','direction','status','from','to'])assert.equal(nextUrl.searchParams.get(key),new URL(filteredPath,base).searchParams.get(key));
+  const removeSymbolTag=filteredHtml.match(/<a[^>]*aria-label="Remove Symbol filter"[^>]*>/)[0];
+  const withoutSymbol=new URL(decode(removeSymbolTag.match(/href="([^"]+)"/)[1]),base);
+  assert.ok(!withoutSymbol.searchParams.has('symbol'));
+  assert.ok(!withoutSymbol.searchParams.has('page'));
+  for(const key of ['direction','status','from','to']) assert.equal(withoutSymbol.searchParams.get(key),new URL(filteredPath,base).searchParams.get(key));
   const secondHtml=await(await a.request(nextPath)).text();assert.ok(!/>Next<\/a>/.test(secondHtml));assert.match(secondHtml,/ONLY_A<\/a>/);
   assert.ok(secondHtml.includes('26 matching trades · 1 on this page.'));
   const beyondHtml=await(await a.request(filteredPath+'&page=99')).text();
@@ -582,6 +587,7 @@ try {
       await pages[1].getByText('No trades yet.',{exact:false}).waitFor();
       await pages[1].goto(base.replace('127.0.0.1','localhost')+path);assert.ok(!(await pages[1].textContent('body')).includes('A private rationale'));
       await pages[0].goto(base.replace('127.0.0.1','localhost')+'/trades?page=2');
+      await pages[0].locator('.journal-filter-panel > summary').click();
       await pages[0].getByLabel('Symbol (exact)',{exact:true}).fill('missing');
       await pages[0].getByRole('button',{name:'Apply filters',exact:true}).click();
       await pages[0].waitForURL(url=>url.searchParams.get('symbol')==='missing'&&!url.searchParams.has('page'));
@@ -589,6 +595,32 @@ try {
       await pages[0].getByRole('link',{name:'Clear filters',exact:true}).first().click();
       await pages[0].waitForURL(url=>url.pathname==='/trades'&&!url.search);
       assert.ok((await pages[0].textContent('table')).includes('ONLY_A'));
+      // The same semantic ledger becomes cards without hiding fields on mobile.
+      await pages[0].setViewportSize({width:390,height:844});
+      assert.ok(await pages[0].locator('.journal-filter-panel').evaluate(el=>!el.open));
+      assert.ok(await pages[0].evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+      await pages[0].locator('.journal-filter-panel > summary').click();
+      await pages[0].getByLabel('Symbol (exact)',{exact:true}).fill('ONLY_A');
+      await pages[0].getByRole('button',{name:'Apply filters',exact:true}).click();
+      await pages[0].waitForURL(url=>url.searchParams.get('symbol')==='ONLY_A');
+      await pages[0].getByRole('link',{name:'Remove Symbol filter',exact:true}).click();
+      await pages[0].waitForURL(url=>url.pathname==='/trades'&&!url.search);
+      assert.ok(await pages[0].getByRole('table').isVisible());
+      assert.ok(await pages[0].evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+      if(process.env.JOURNAL_SCREENSHOTS) await pages[0].screenshot({path:process.env.JOURNAL_SCREENSHOTS+'-mobile.png',fullPage:true});
+      await pages[0].setViewportSize({width:1440,height:1000});
+      if(process.env.JOURNAL_SCREENSHOTS) await pages[0].screenshot({path:process.env.JOURNAL_SCREENSHOTS+'-desktop.png',fullPage:true});
+      await pages[0].getByRole('link',{name:'ONLY_A',exact:true}).click();
+      await pages[0].getByRole('heading',{name:'The thinking behind the trade',exact:true}).waitFor();
+      await pages[0].setViewportSize({width:390,height:844});
+      assert.ok(await pages[0].evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+      await pages[0].getByRole('link',{name:'Jump to review ↓',exact:true}).click();
+      await pages[0].waitForURL(url=>url.hash==='#review');
+      if(process.env.JOURNAL_SCREENSHOTS) await pages[0].screenshot({path:process.env.JOURNAL_SCREENSHOTS+'-detail.png',fullPage:true});
+      await pages[0].getByRole('link',{name:'Back to trades',exact:true}).click();
+      await pages[0].waitForURL(url=>url.pathname==='/trades');
+      await pages[0].setViewportSize({width:1440,height:1000});
+
       const downloadEvent=pages[0].waitForEvent('download');
       await pages[0].getByRole('link',{name:'Export matching trades (CSV)',exact:true}).click();
       const download=await downloadEvent;assert.equal(download.suggestedFilename(),'rationale-trades.csv');

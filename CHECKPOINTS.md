@@ -1050,3 +1050,35 @@ confirm its explicit dates; use All time to remove the bounds.
 Verified locally: all 77 tests, lint, typecheck, production build with CI fixture
 configuration, HTTP isolation and diff checks pass. Full Chromium verification
 runs in CI. CP44 passed its full CI gate including the monthly browser drilldown.
+
+## CP46 — journal reading and navigation design
+
+The journal now uses a quieter charcoal/mint palette, a clear primary Log a trade
+button and separate navigation, review and data-management actions. Filters sit in
+a native disclosure, closed for an unfiltered journal and open for active filters
+or errors. All ten controls remain available, grouped into trade, outcome/review
+and entry-date sections. Active-filter chips remove one constraint, preserve the
+others and return to page one. Guidance is available on demand.
+
+Desktop entries retain a semantic table and add setup context, readable status
+badges, UTC date/time separation and signed P&L tones only for closed trades.
+Mobile uses the same entries as labelled cards without dropping fields. Medium
+widths retain a horizontally scrollable table. Focus outlines and keyboard-native
+controls remain available. Trade detail separates execution from rationale/notes
+and provides a jump to the review form; context-preserving links are unchanged.
+
+Verification: lint, typecheck, production build and full local HTTP/Chromium flows
+pass. Desktop and 390px mobile screenshots were inspected. Browser checks cover
+mobile overflow, filter opening/removal, export, detail navigation and review
+anchors alongside the existing edit/conflict/import/ownership regressions. The
+full remote CI gate runs before the PR is marked ready. No schema, runtime
+package, environment or live-data changes.
+
+Acceptance: open the journal on desktop and mobile; expand Filters, combine two
+constraints, remove one chip and inspect the remaining selection. Open a trade,
+jump to review and return to the journal. Export should match the visible filter
+selection across all pages.
+
+This user-requested design checkpoint takes CP46. The proposed AI roadmap moves
+to CP47 consolidation/contract, CP48 evidence snapshot, CP49 first live review
+and CP50 pilot evaluation; those remain proposals rather than implemented work.

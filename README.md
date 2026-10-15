@@ -170,3 +170,13 @@ today, including its incomplete day. Last month covers the full preceding month.
 Links resolve to explicit from/to dates when rendered, so bookmarks retain those
 dates. Manual bounds and All time remain available; matching journal and export
 links carry the selected dates as before.
+
+### Journal reading and navigation (CP46)
+
+The journal puts entries first. Expand **Filters** to narrow the list; active
+filters open automatically and appear as removable chips. Removing a chip keeps
+other constraints and returns to page one. Desktop uses a table with setup
+context; mobile shows the same fields as cards. **How to read this journal**
+explains outcome, review and export semantics. Trade detail separates execution
+from rationale and notes, with a **Jump to review** link. All existing filtered
+exports, pagination, import context and review/edit return links remain available.
