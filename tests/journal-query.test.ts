@@ -70,7 +70,7 @@ test("drill-down journal and export match every performance group before paginat
       {...base,entryTime:new Date("2026-01-03T00:00:00Z")}, {...base,accountId:accounts[1].id},
     ]);
     const repo=tradeRepository(db), period={from:"2026-01-02",to:"2026-01-02"};
-    for (const by of ["setup","symbol","adherence"] as const) {
+    for (const by of ["setup","symbol","adherence","month"] as const) {
       for (const group of await tradeBreakdown(db,owners[0].id,by,period)) {
         for (const sample of ["total","open","missingPnl","measured","wins","losses","breakeven"] as BreakdownSample[]) {
           const sampleUrl=new URL(breakdownJournalHref(by,group.group,period,sample),"https://example.test");

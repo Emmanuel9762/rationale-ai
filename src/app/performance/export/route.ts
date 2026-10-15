@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
   if (errors.length) return new Response(errors.join("\n"), {status:400,headers});
   try {
-    const groups = await Promise.all((["setup", "symbol", "adherence"] as const).map(async by => ({
+    const groups = await Promise.all((["setup", "symbol", "adherence", "month"] as const).map(async by => ({
       by, rows: await tradeBreakdown(db, user.id, by, period, PERFORMANCE_EXPORT_LIMIT + 1),
     })));
     return new Response(performanceCsv(groups, period), {headers:{...headers,"Content-Type":"text/csv; charset=utf-8","Content-Disposition":'attachment; filename="rationale-performance.csv"'}});

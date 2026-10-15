@@ -151,3 +151,13 @@ conversion is not applied. This is a summary, not a trade import or database bac
 Exports reject more than 2,000 combined group rows rather than truncate them.
 Narrow the dates if needed. Formula-like labels receive a protective apostrophe;
 recorded numeric values retain their decimal precision and negative signs.
+
+## Monthly performance (CP44)
+
+Performance and its summary CSV now include a fourth dimension: UTC entry month.
+Rows are chronological and omit months without entries. Metrics follow entry
+cohorts even when a trade closes later; this is not an exit-date cash-flow report.
+Selected dates can make boundary months partial, and every monthly journal link
+uses the intersection of that month and the selected period. CSV dimension month
+uses YYYY-MM group keys; its date columns record the overall report selection.
+The existing 2,000-row export cap applies across all four dimensions combined.
