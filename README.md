@@ -161,3 +161,12 @@ Selected dates can make boundary months partial, and every monthly journal link
 uses the intersection of that month and the selected period. CSV dimension month
 uses YYYY-MM group keys; its date columns record the overall report selection.
 The existing 2,000-row export cap applies across all four dimensions combined.
+
+### Quick entry dates (CP45)
+
+Dashboard and Performance offer Last 7 days, Last 30 days, This month and Last
+month. All use UTC entry dates. Rolling ranges include today; this month ends
+today, including its incomplete day. Last month covers the full preceding month.
+Links resolve to explicit from/to dates when rendered, so bookmarks retain those
+dates. Manual bounds and All time remain available; matching journal and export
+links carry the selected dates as before.

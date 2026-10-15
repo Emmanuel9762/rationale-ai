@@ -1025,3 +1025,28 @@ the month dimension separately from the other overlapping dimensions.
 
 Verified locally: all 75 tests, lint, typecheck, clean production build, full HTTP
 isolation and diff checks pass. Chromium verification runs in the CI gate.
+
+## CP45 — quick UTC entry-date ranges
+
+Dashboard and Performance share four quick links: Last 7 days, Last 30 days,
+This month and Last month. A pure UTC helper computes inclusive calendar dates
+without mutating its clock input. Rolling windows include today; this month is
+month-start through today, and last month is complete. Server-rendered links use
+explicit from/to parameters, so a saved URL retains its dates. Matching ranges
+are marked current. Manual dates, All time, journal drilldowns and CSV exports
+continue using the existing validated period contract. Invalid date pages also
+show quick links for recovery. No database, schema, dependency or environment
+changes; nine migrations remain.
+
+Unit checks cover UTC offset rollover, year boundaries, leap February, inclusive
+windows and input preservation. HTTP checks cover both pages, invalid-date
+recovery and active ranges. Chromium selects a dashboard month, carries it into
+Performance, switches to a rolling week, checks export bounds and resets All time.
+
+Acceptance: choose Last month on Dashboard, open performance for those dates,
+choose Last 7 days and inspect the export dates. Bookmark the resulting URL and
+confirm its explicit dates; use All time to remove the bounds.
+
+Verified locally: all 77 tests, lint, typecheck, production build with CI fixture
+configuration, HTTP isolation and diff checks pass. Full Chromium verification
+runs in CI. CP44 passed its full CI gate including the monthly browser drilldown.
