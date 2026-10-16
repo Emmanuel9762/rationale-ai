@@ -1,3 +1,4 @@
+import { EntryDatePresets } from "@/app/entry-date-presets";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import Link from "next/link";
 import { journalHref, parseJournalFilters, type JournalSearchParams, type JournalFilters } from "@/lib/journal-filters";
@@ -56,6 +57,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Jou
         <button className="rounded-lg bg-zinc-100 px-4 py-2 text-zinc-950">Apply dates</button><Link className="underline" href="/">All time</Link>
         {!errors.length && <Link className="underline" href={journalHref(period).replace('/trades','/performance')}>View performance for these dates</Link>}
       </form>
+      <EntryDatePresets pathname="/" period={errors.length ? {} : period} />
       <p className="text-sm text-zinc-400">Dates select when trades were entered, even if they closed later. Both UTC boundary days are included. Blank dates are unrestricted; other journal filters do not apply here.</p>
       {errors.length ? <div role="alert" className="rounded-xl border border-red-900 p-5"><p>Check your dates.</p><ul>{errors.map(error=><li key={error}>{error}</li>)}</ul></div> : <DashboardResults userId={user.id} period={period} />}
     </div>

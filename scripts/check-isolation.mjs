@@ -205,6 +205,22 @@ try {
     const html=await(await a.request('/?'+query)).text();assert.match(html,/Check your dates/);
     assert.ok(!html.includes('aria-label="Trading metrics"'));assert.ok(!html.includes('Journal follow-up'));assert.ok(!html.includes('Recent trades'));
   }
+  for (const pathname of ['/', '/performance']) {
+    const html=await(await a.request(pathname+'?from=invalid')).text();
+    const nav=html.match(/<nav aria-label="Quick entry dates"[^>]*>([\s\S]*?)<\/nav>/)[1];
+    for (const label of ['Last 7 days','Last 30 days','This month','Last month']) assert.ok(nav.includes(label));
+    const hrefs=[...nav.matchAll(/href="([^"]+)"/g)].map(match=>decode(match[1]));
+    assert.equal(hrefs.length,4);
+    for(const href of hrefs) {
+      const url=new URL(href,base);assert.equal(url.pathname,pathname);
+      assert.match(url.searchParams.get('from'),/^\d{4}-\d{2}-\d{2}$/);
+      assert.match(url.searchParams.get('to'),/^\d{4}-\d{2}-\d{2}$/);
+      assert.ok(url.searchParams.get('from')<=url.searchParams.get('to'));
+    }
+    const recovered=await(await a.request(hrefs[0])).text();
+    assert.ok(!recovered.includes('Check your dates.'));
+    assert.ok(recovered.includes('aria-current="true"'));
+  }
   const performanceBefore = await(await a.request('/performance')).text();
   assert.match(performanceBefore,/Performance breakdowns/);assert.match(performanceBefore,/By setup/);assert.match(performanceBefore,/By symbol/);
   assert.ok(performanceBefore.includes('ONLY_A'));assert.ok(!performanceBefore.includes('ONLY_B'));
@@ -593,6 +609,23 @@ try {
       await pages[0].goto(base.replace('127.0.0.1','localhost')+'/?from=2027-01-01');
       await pages[0].getByRole('link',{name:'All time',exact:true}).click();
       await pages[0].waitForURL(url=>url.pathname==='/'&&!url.search);
+      assert.equal(await pages[0].getByLabel('From entry date (UTC)',{exact:true}).inputValue(),'');
+      const lastMonth=pages[0].getByRole('link',{name:'Last month',exact:true});
+      const monthUrl=new URL(await lastMonth.getAttribute('href'),base);
+      await lastMonth.click();
+      await pages[0].waitForURL(url=>url.search===monthUrl.search);
+      assert.equal(await pages[0].getByLabel('From entry date (UTC)',{exact:true}).inputValue(),monthUrl.searchParams.get('from'));
+      assert.equal(await pages[0].getByLabel('Through entry date (UTC)',{exact:true}).inputValue(),monthUrl.searchParams.get('to'));
+      await pages[0].getByRole('link',{name:'View performance for these dates',exact:true}).click();
+      await pages[0].waitForURL(url=>url.pathname==='/performance'&&url.search===monthUrl.search);
+      const lastWeek=pages[0].getByRole('link',{name:'Last 7 days',exact:true});
+      const weekUrl=new URL(await lastWeek.getAttribute('href'),base);
+      await lastWeek.click();
+      await pages[0].waitForURL(url=>url.search===weekUrl.search);
+      const exportUrl=new URL(await pages[0].getByRole('link',{name:'Export performance (CSV)',exact:true}).getAttribute('href'),base);
+      assert.equal(exportUrl.search,weekUrl.search);
+      await pages[0].getByRole('link',{name:'All time',exact:true}).click();
+      await pages[0].waitForURL(url=>url.pathname==='/performance'&&!url.search);
       assert.equal(await pages[0].getByLabel('From entry date (UTC)',{exact:true}).inputValue(),'');
       for (const [name,query] of [
         [/^Open \/ incomplete trades:/,'status=open'],
