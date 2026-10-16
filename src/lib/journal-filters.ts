@@ -1,3 +1,4 @@
+import { monthEntryPeriod } from "./entry-period";
 import { isPlanAdherenceGroup, type PlanAdherenceGroup } from "./plan-adherence";
 import type { TradeGroupDimension } from "./trade-group";
 
@@ -91,6 +92,7 @@ export function breakdownJournalHref(by: TradeGroupDimension, group: string | nu
     : sample === "wins" ? {outcome:"win"}
     : sample === "losses" ? {outcome:"loss"}
     : sample === "breakeven" ? {outcome:"breakeven"} : {};
+  if (by === "month") return journalHref({...selection,...monthEntryPeriod(group, period)});
   if (by === "adherence") {
     if (!isPlanAdherenceGroup(group)) throw new Error("Invalid plan adherence group.");
     return journalHref({ ...selection, from: period.from, to: period.to, adherence: group });

@@ -208,7 +208,7 @@ try {
   const performanceBefore = await(await a.request('/performance')).text();
   assert.match(performanceBefore,/Performance breakdowns/);assert.match(performanceBefore,/By setup/);assert.match(performanceBefore,/By symbol/);
   assert.ok(performanceBefore.includes('ONLY_A'));assert.ok(!performanceBefore.includes('ONLY_B'));
-  const rowsBefore=performanceBefore.match(/<tbody>[\s\S]*?<\/tbody>/g);assert.equal(rowsBefore.length,3);
+  const rowsBefore=performanceBefore.match(/<tbody>[\s\S]*?<\/tbody>/g);assert.equal(rowsBefore.length,4);
   assert.ok(rowsBefore.every(table=>table.includes('—')),'open-only groups have no measured results');
   await database.query("update trades set setup='OWNER_SETUP',exit_price=2,exit_time='2026-01-01 13:00:00',pnl=12.34 where id=$1",[aTrade.id]);
   const performanceAfter = await(await a.request('/performance')).text();
@@ -229,6 +229,7 @@ try {
   assert.match(datedPerformance,/OWNER_SETUP/);assert.match(datedPerformance,/12\.34/);assert.ok(!datedPerformance.includes('ONLY_B'));
   assert.match(datedPerformance,/href="\/trades\?from=2026-01-01&amp;to=2026-01-01"/);
   assert.match(datedPerformance,/href="\/trades\?setup=OWNER_SETUP&amp;from=2026-01-01&amp;to=2026-01-01"/);
+  assert.match(datedPerformance,/By entry month \(UTC\)/);assert.ok(datedPerformance.includes('View trades for month: 2026-01'));
   assert.match(datedPerformance,/By plan adherence/);assert.match(datedPerformance,/Followed my plan/);
   const performanceExportPath='/performance/export?from=2026-01-01&to=2026-01-01';
   const reportResponse=await a.request(performanceExportPath);assert.equal(reportResponse.status,200);
@@ -236,6 +237,7 @@ try {
   assert.equal(reportResponse.headers.get('x-content-type-options'),'nosniff');assert.match(reportResponse.headers.get('content-disposition'),/rationale-performance.csv/);
   const reportCsv=await reportResponse.text();
   assert.ok(reportCsv.includes('"setup","OWNER_SETUP","false","2026-01-01","2026-01-01","1","0","0","1","1","0","0","100.0%","12.34"'));
+  assert.ok(reportCsv.includes('"month","2026-01","false","2026-01-01","2026-01-01","26","25","0","1","1","0","0"'));
   assert.ok(!reportCsv.includes('ONLY_B'));assert.ok(!reportCsv.includes('PRIVATE_REVIEW'));
   const otherReport=await(await b.request(performanceExportPath)).text();assert.ok(otherReport.includes('ONLY_B'));assert.ok(!otherReport.includes('OWNER_SETUP'));
   assert.equal(await(await a.request(performanceExportPath+'&symbol=ignored')).text(),reportCsv);
@@ -533,6 +535,14 @@ try {
       const browserReport=await readFile(await reportDownload.path(),'utf8');
       assert.ok(browserReport.includes('"symbol","BATCH_BROWSER","false","2026-09-01","2026-09-01","1","0","0","1","1","0","0","100.0%","2.00"'));
       assert.ok(!browserReport.includes('ONLY_A'));
+      assert.ok(browserReport.includes('"month","2026-09","false","2026-09-01","2026-09-01","1"'));
+      await pages[0].getByRole('link',{name:'View 1 winning trades for month: 2026-09',exact:true}).click();
+      await pages[0].getByRole('link',{name:'BATCH_BROWSER',exact:true}).waitFor();
+      assert.equal(new URL(pages[0].url()).searchParams.get('from'),'2026-09-01');
+      assert.equal(new URL(pages[0].url()).searchParams.get('to'),'2026-09-01');
+      assert.equal(new URL(pages[0].url()).searchParams.get('outcome'),'win');
+      await pages[0].goBack();
+
       await pages[0].getByRole('link',{name:'View 0 closed trades without P&L for symbol: BATCH_BROWSER',exact:true}).click();
       await pages[0].getByText('No trades match these filters.',{exact:false}).waitFor();
       assert.equal(new URL(pages[0].url()).searchParams.get('outcome'),'missing');

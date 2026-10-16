@@ -1001,3 +1001,27 @@ never sum setup, symbol and adherence totals together. Nine migrations remain.
 Verified locally: all 73 tests, lint, typecheck, production build, full HTTP
 isolation and diff checks pass. Browser download verification uses the CI gate.
 CP43 is stacked on CP42, which passed full CI including Chromium.
+
+## CP44 — monthly performance cohorts
+
+Added chronological UTC entry-month groups to Performance and its summary CSV.
+Stored UTC entry timestamps determine the group; exit dates never move a trade
+between cohorts. Months without entries are omitted. A shared month-period helper
+intersects each group with the selected bounds before building journal links,
+including outcome/sample drill-downs. This prevents partial-period links from
+silently expanding to a full month. CSV rows retain the selected report bounds
+and use dimension month with a YYYY-MM key. The existing combined export cap now
+covers all four dimensions. One additional grouped read is made per report.
+
+Tests cover leap days, December rollover, partial first/last months, absent months,
+owner separation, entry versus exit dates, exact decimals and every journal/count/
+export sample. HTTP checks verify month links and CSV rows; Chromium follows a
+monthly outcome link while retaining a one-day selection. No schema, dependency,
+environment or live database change. Nine migrations remain required.
+
+Acceptance: select a period spanning parts of two months, compare the monthly
+counts, follow a monthly sample and confirm its narrowed dates. Export and inspect
+the month dimension separately from the other overlapping dimensions.
+
+Verified locally: all 75 tests, lint, typecheck, clean production build, full HTTP
+isolation and diff checks pass. Chromium verification runs in the CI gate.

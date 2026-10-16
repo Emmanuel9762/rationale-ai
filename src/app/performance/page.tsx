@@ -41,10 +41,11 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
   const params = await searchParams;
   const { filters: period, errors } = parseJournalFilters({ from: params.from, to: params.to });
   const filtered = Boolean(period.from || period.to);
-  const [bySetup, bySymbol, byAdherence] = errors.length ? [[], [], []] : await Promise.all([
+  const [bySetup, bySymbol, byAdherence, byMonth] = errors.length ? [[], [], [], []] : await Promise.all([
     tradeBreakdown(db, user.id, "setup", period),
     tradeBreakdown(db, user.id, "symbol", period),
     tradeBreakdown(db, user.id, "adherence", period),
+    tradeBreakdown(db, user.id, "month", period),
   ]);
   return <main className="min-h-screen bg-zinc-950 px-6 py-10 text-zinc-100">
     <div className="mx-auto max-w-6xl space-y-6">
@@ -59,7 +60,7 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
         <Link className="underline" href="/performance">All time</Link>
         {!errors.length && <Link className="underline" href={journalHref(period)}>View matching trades</Link>}
       </form>
-      {!errors.length && <p className="text-sm text-zinc-400"><a className="underline" href={journalHref(period).replace("/trades", "/performance/export")}>Export performance (CSV)</a> · Up to {PERFORMANCE_EXPORT_LIMIT} group rows across all three breakdowns. Groups overlap across dimensions; do not add their totals together. This summary cannot be imported as trades. Missing metrics are blank; ∞ means no recorded losses. Formula-like labels receive a protective apostrophe.</p>}
+      {!errors.length && <p className="text-sm text-zinc-400"><a className="underline" href={journalHref(period).replace("/trades", "/performance/export")}>Export performance (CSV)</a> · Up to {PERFORMANCE_EXPORT_LIMIT} group rows across all four breakdowns. Groups overlap across dimensions; do not add their totals together. This summary cannot be imported as trades. Missing metrics are blank; ∞ means no recorded losses. Formula-like labels receive a protective apostrophe.</p>}
       <div className="space-y-2 rounded-xl border border-zinc-800 p-5 text-sm text-zinc-300">
         <p>Win rate is wins divided by closed trades with recorded P&L. Wins, losses and break-even counts add up to the measured sample. Break-even trades count in the sample but are not wins. A closed trade has both an exit price and exit time.</p>
         <p>Open / incomplete trades and closed trades missing P&L are excluded from performance metrics. Win rate and recorded P&L show a dash when there are no measured results.</p>
@@ -69,9 +70,11 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
         <p>P&L is shown as recorded, with no currency conversion. All included accounts must use the same currency. Dates include trades entered on the selected UTC days, even if they closed later. Blank bounds are unrestricted. Other history filters do not apply here.</p>
         <p>Setup labels are trimmed but keep their capitalization. Symbols are grouped without regard to case; missing labels appear as <em>Not specified</em>.</p>
         <p>Select a group or Total trades to inspect all its trades for these entry dates. Select an Open, Closed without P&L, Closed with P&L, Wins, Losses, or Break-even count to inspect that exact subset. Counts reflect current values; later trade edits can change the results.</p>
+        <p>Monthly groups use UTC entry dates, even if trades closed later. Selected bounds can make the first or last month partial. Months without entries are omitted; this is not a realized-by-exit-date report. Monthly links stay within the selected period.</p>
         <p>Plan adherence reflects your latest saved self-assessment, including reviews of open trades. Unreviewed trades are separate from reviewed trades without a valid assessment. Later trade edits do not clear a review. These comparisons describe recorded outcomes; they do not establish that adherence caused a result.</p>
       </div>
       {errors.length ? <div role="alert" className="rounded-xl border border-red-900 p-5"><p>Check your dates.</p><ul>{errors.map(error => <li key={error}>{error}</li>)}</ul></div> : filtered && bySetup.length === 0 ? <p>No trades match these entry dates. Change the dates or choose All time.</p> : bySetup.length === 0 ? <p className="rounded-xl border border-zinc-800 p-6">No trades yet. <Link className="underline" href="/trades/new">Log a trade</Link> to start building your performance history.</p> : <>
+        <BreakdownTable title="By entry month (UTC)" dimension="Entry month (UTC)" rows={byMonth} by="month" period={period}/>
         <BreakdownTable title="By setup" dimension="Setup" rows={bySetup} by="setup" period={period}/>
         <BreakdownTable title="By symbol" dimension="Symbol" rows={bySymbol} by="symbol" period={period}/>
         <BreakdownTable title="By plan adherence" dimension="Plan adherence" rows={byAdherence} by="adherence" period={period}/>
