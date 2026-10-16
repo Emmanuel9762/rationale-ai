@@ -1082,3 +1082,27 @@ selection across all pages.
 This user-requested design checkpoint takes CP46. The proposed AI roadmap moves
 to CP47 consolidation/contract, CP48 evidence snapshot, CP49 first live review
 and CP50 pilot evaluation; those remain proposals rather than implemented work.
+
+## CP47 — consolidate the journal and prepare MT5 ingestion
+
+PRs #26–31 were checked at their exact heads for passing CI, retargeted in
+dependency order and merged with merge commits preserving each checkpoint.
+The combined main commit 42612f708ff1da095d80d0161ef1819b9045295d has exactly the
+same source tree as verified CP46 0ae582d5c353ff9811f00d926d2d797b79ccc3c0.
+No conflict resolutions or application changes were necessary.
+
+This checkpoint updates the release baseline and acceptance checklist and adds
+MT5_IMPORT.md. The contract separates source executions from journal records,
+requires stable account-scoped IDs for overlapping imports, exact financial and
+timezone reconciliation, and preservation of human notes/reviews. Existing CSV
+batch replay protection is explicitly insufficient for incremental source sync.
+
+The next implementation depends on a sanitised sample from the actual MT5
+broker/demo account; format, account mode and timezone must not be guessed.
+TradingView remains a chart-analysis companion unless Paper Trading is chosen
+as a distinct source. No parser, source schema, connector, broker credentials,
+live database write or AI integration is introduced here. Nine migrations remain.
+
+Verification: clean tree before consolidation, successful exact-head CI on all
+six PRs, combined-tree equality, documentation/diff checks. The final main CI run
+must pass before handoff. Laptop acceptance remains separate from fixture CI.

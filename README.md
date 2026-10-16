@@ -88,12 +88,17 @@ P&L count to inspect its trades. Group and entry dates carry into the journal an
 CSV export. Zero counts open an empty result. These views use current saved values,
 so later edits can change membership. No new migration is required.
 
-## Consolidated baseline (CP40)
+## Consolidated baseline (CP47)
 
-CP26–39 are merged on `main`. Fetch, switch successfully and fast-forward before
-running `release:verify -- --expect-ref origin/main`; see RELEASE.md for the full
-Fish sequence and local acceptance. The schema still requires nine migrations.
-Consolidated CI does not replace testing your own database/Auth pairing locally.
+CP41–46, including the redesigned journal, are merged on `main`. Fetch, switch
+successfully and fast-forward before running
+`release:verify -- --expect-ref origin/main`; see RELEASE.md for the Fish sequence
+and acceptance checks. Nine migrations remain required.
+
+MT5 ingestion is the next proposed milestone. [MT5_IMPORT.md](MT5_IMPORT.md)
+defines the source-sample requirements, execution identity, reconciliation and
+test cases. Automatic logging is not implemented; existing imports still require
+Rationale's CSV format.
 
 ## Journal follow-up (CP37)
 
