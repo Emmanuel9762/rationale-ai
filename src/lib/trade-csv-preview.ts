@@ -14,7 +14,7 @@ export type CsvPreview = { rows: CsvPreviewRow[]; errors: { record: number; mess
 
 // A small bounded RFC-style reader: quotes may contain commas/newlines and
 // doubled quotes. Malformed structure rejects the file; values get row errors.
-function records(source: string) {
+function records(source: string, maxColumns: number) {
   const rows: { record: number; cells: string[] }[] = [];
   let cells: string[] = [], value = "", state: "start" | "plain" | "quoted" | "closed" = "start", record = 1;
   function field() { cells.push(value); value = ""; state = "start"; }
@@ -32,7 +32,7 @@ function records(source: string) {
       } else value += char;
     } else if (char === ",") {
       field();
-      if (cells.length >= allowedColumns.size) throw new CsvPreviewError(`Too many columns in record ${record}.`);
+      if (cells.length >= maxColumns) throw new CsvPreviewError(`Too many columns in record ${record}.`);
     } else if (char === "\n" || char === "\r") {
       if (char === "\r" && source[i + 1] === "\n") i++;
       row();
@@ -45,10 +45,14 @@ function records(source: string) {
   return rows;
 }
 
-export function previewTradeCsv(source: string): CsvPreview {
+export function readCsvRecords(source: string, maxColumns = 32) {
   if (new TextEncoder().encode(source).length > CSV_MAX_BYTES) throw new CsvPreviewError("Use a CSV no larger than 256 KiB.");
   if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\ufffd]/u.test(source)) throw new CsvPreviewError("Use a UTF-8 text CSV without binary or invalid characters.");
-  const [header, ...data] = records(source.replace(/^\uFEFF/, ""));
+  return records(source.replace(/^\uFEFF/, ""), maxColumns);
+}
+
+export function previewTradeCsv(source: string): CsvPreview {
+  const [header, ...data] = readCsvRecords(source, allowedColumns.size);
   if (!header) throw new CsvPreviewError("The CSV is empty. Include a header and at least one trade.");
   const names = header.cells.map(name => name.trim());
   if (new Set(names).size !== names.length) throw new CsvPreviewError("Column names must not repeat.");

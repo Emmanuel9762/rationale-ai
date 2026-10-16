@@ -1,0 +1,5 @@
+Instrument,Side,Entry,Size,Opened UTC,Exit,Closed UTC,Result,Idea,Comment,External reference
+EURUSD,BUY,1.100000,1000,2026-10-01T09:30:00Z,1.102000,2026-10-01T10:00:00Z,2.00,Pullback,"Synthetic winner, not a signal",DEMO-001
+GBPUSD,SELL,1.300000,1000,2026-10-02T10:30:00Z,1.302000,2026-10-02T11:00:00Z,-2.00,Breakout,"Synthetic loss
+Review the entry",DEMO-002
+USDJPY,BUY,150.000000,1000,2026-10-03T08:00:00Z,,,,Range,Synthetic open trade,DEMO-003
