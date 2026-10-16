@@ -1106,3 +1106,36 @@ live database write or AI integration is introduced here. Nine migrations remain
 Verification: clean tree before consolidation, successful exact-head CI on all
 six PRs, combined-tree equality, documentation/diff checks. The final main CI run
 must pass before handoff. Laptop acceptance remains separate from fixture CI.
+
+## CP48 — broker-neutral paper-trading CSV mapping
+
+The user chose paper trading with a broker still undecided and authorised a
+scoped implementation. This replaces the proposed MT5-specific CP48 parser with
+a generic, local-only column mapper for files containing one row per journal
+trade. The authenticated /trades/map-csv page is linked from Preview CSV.
+
+A bounded shared CSV reader preserves existing strict Rationale import headers.
+The mapper requires explicit mappings, unique source-column selection and a
+whole-trade/currency acknowledgement. It supports LONG/SHORT or explicitly
+selected entry-side BUY/SELL. Existing trade validation supplies date, decimal
+and closing-field checks. Source record numbers, repeated rows and omitted
+columns are visible. Formula-like text is protected consistently in preview and
+download; numeric decimal signs remain unchanged.
+
+Only an entirely valid conversion can be downloaded. Mapping/file changes clear
+stale results; asynchronous reads are generation-guarded. The downloaded CSV
+uses the established server-validated preview/confirmation path. No uploads,
+database writes, broker APIs or automatic sync occur on the mapping page.
+Order/fill reconstruction, timezone/lot/fee conversion and overlapping-source
+deduplication remain out of scope and are explained in the UI.
+
+The three-trade synthetic sample and PAPER_IMPORT.md provide a complete manual
+acceptance path. Tests cover the new boundaries and preserve existing parser
+behaviour; browser checks verify local-only conversion, exact download contents,
+mapping invalidation, mobile width, errors/reset and import-preview handoff.
+No schema, runtime dependency or environment change. Nine migrations remain.
+
+Verified locally: all 84 tests, lint, typecheck, clean production build, protected
+route checks and full HTTP/Chromium workflows pass. The mapped CSV preview was
+inspected at 390px width. A stale Turbopack cache was moved aside before the clean
+build. Final remote CI is required before marking the PR ready.

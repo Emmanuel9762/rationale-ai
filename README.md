@@ -185,3 +185,12 @@ context; mobile shows the same fields as cards. **How to read this journal**
 explains outcome, review and export semantics. Trade detail separates execution
 from rationale and notes, with a **Jump to review** link. All existing filtered
 exports, pagination, import context and review/edit return links remain available.
+
+### Paper-trading CSV mapping (CP48)
+
+Open **Preview CSV → Map a paper-trade CSV** to map custom column names locally.
+Download the included three-trade sample and follow [PAPER_IMPORT.md](PAPER_IMPORT.md).
+Validate, inspect the result, then download a compatible file and use the existing
+preview/confirmation flow to save it. Only whole-trade rows with UTC timestamps
+are supported. This is not broker sync or a certified TradingView/MT5 adapter.
+No migration required; overlapping histories are not deduplicated.

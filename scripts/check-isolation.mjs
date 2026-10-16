@@ -514,6 +514,51 @@ try {
       await pages[0].getByRole('region',{name:'By symbol',exact:true}).waitFor();
       assert.equal(await pages[0].getByLabel('From entry date (UTC)',{exact:true}).inputValue(),'');
       await pages[0].goto(base.replace('127.0.0.1','localhost')+'/trades/preview');
+
+      // Mapping is local-only; validate/download then hand off to the existing preview.
+      const mappingCount=(await database.query("select count(*)::int n from trades")).rows[0].n;
+      await pages[0].getByRole('link',{name:'Map a paper-trade CSV',exact:true}).click();
+      await pages[0].getByRole('heading',{name:'Map a trade CSV',exact:true}).waitFor();
+      const mappingSource=await readFile('public/samples/paper-trades-mapping.csv','utf8');
+      const mapperRequests=[];
+      const captureMapping=request=>{if(request.method()==='POST')mapperRequests.push(request.url());};
+      pages[0].on('request',captureMapping);
+      await pages[0].getByLabel('Paper-trade CSV',{exact:true}).setInputFiles({name:'paper.csv',mimeType:'text/csv',buffer:Buffer.from(mappingSource)});
+      await pages[0].getByRole('button',{name:'Read columns',exact:true}).click();
+      for(const [field,index] of Object.entries({'Symbol':0,'Direction':1,'Entry price':2,'Quantity':3,'Entry time (UTC)':4,'Exit price':5,'Exit time (UTC)':6,'Recorded P&L':7,'Setup':8,'Notes':9})) {
+        await pages[0].getByLabel(field,{exact:true}).selectOption(String(index));
+      }
+      await pages[0].getByLabel('Direction values',{exact:true}).selectOption('buy-sell');
+      await pages[0].getByRole('checkbox').check();
+      await pages[0].getByRole('button',{name:'Validate mapping',exact:true}).click();
+      await pages[0].getByText('3 records: 3 valid, 0 invalid, 0 repeated. No trades saved.',{exact:true}).waitFor();
+      const mappedDownloadEvent=pages[0].waitForEvent('download');
+      await pages[0].getByRole('button',{name:'Download mapped CSV',exact:true}).click();
+      const mappedDownload=await mappedDownloadEvent;
+      assert.equal(mappedDownload.suggestedFilename(),'rationale-paper-trades.csv');
+      const mappedCsv=await readFile(await mappedDownload.path(),'utf8');
+      assert.ok(mappedCsv.includes('"SHORT"'));assert.ok(mappedCsv.includes('"-2.00"'));assert.ok(!mappedCsv.includes('DEMO-001'));
+      await pages[0].setViewportSize({width:390,height:844});
+      assert.ok(await pages[0].evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+      if(process.env.JOURNAL_SCREENSHOTS) await pages[0].screenshot({path:process.env.JOURNAL_SCREENSHOTS+'-mapping.png',fullPage:true});
+      await pages[0].setViewportSize({width:1440,height:1000});
+      await pages[0].getByLabel('Entry time (UTC)',{exact:true}).selectOption('7');
+      assert.equal(await pages[0].getByRole('button',{name:'Download mapped CSV',exact:true}).count(),0);
+      await pages[0].getByLabel('Recorded P&L',{exact:true}).selectOption('');
+      await pages[0].getByRole('button',{name:'Validate mapping',exact:true}).click();
+      await pages[0].getByText('3 records: 0 valid, 3 invalid, 0 repeated. No trades saved.',{exact:true}).waitFor();
+      assert.equal(await pages[0].getByRole('button',{name:'Download mapped CSV',exact:true}).count(),0);
+      await pages[0].getByRole('button',{name:'Clear mapping',exact:true}).click();
+      assert.equal(await pages[0].getByRole('form',{name:'Paper CSV mapping',exact:true}).count(),0);
+      assert.deepEqual(mapperRequests,[]);
+      pages[0].off('request',captureMapping);
+      assert.equal((await database.query("select count(*)::int n from trades")).rows[0].n,mappingCount);
+      await pages[0].getByRole('link',{name:'Preview CSV',exact:true}).click();
+      await pages[0].getByLabel('Trade CSV',{exact:true}).setInputFiles({name:'mapped.csv',mimeType:'text/csv',buffer:Buffer.from(mappedCsv)});
+      await pages[0].getByRole('button',{name:'Preview CSV',exact:true}).click();
+      await pages[0].getByRole('form',{name:'Confirm CSV import',exact:true}).waitFor();
+      assert.equal((await database.query("select count(*)::int n from trades")).rows[0].n,mappingCount);
+      console.log('Paper CSV mapping: exact values, local-only preview, invalidation, download and import handoff passed.');
       const browserImportCsv=importCsv.replaceAll('BATCH_HTTP','BATCH_BROWSER');
       async function previewBrowserImport() {
         await pages[0].getByLabel('Trade CSV',{exact:true}).setInputFiles({name:'valid.csv',mimeType:'text/csv',buffer:Buffer.from(browserImportCsv)});

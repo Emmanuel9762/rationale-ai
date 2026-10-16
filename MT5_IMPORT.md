@@ -1,6 +1,11 @@
 # MT5 trade ingestion contract
 
-Status: proposed design, prepared in CP47. No MT5 parser, account connection,
+Status: proposed design, prepared in CP47.
+
+CP48 follows the user’s broker-TBD paper-trading choice with a generic whole-trade
+CSV mapper; see [PAPER_IMPORT.md](PAPER_IMPORT.md). The MT5-specific sequence below
+is a historical proposal and remains deferred until a real source is supplied.
+ No MT5 parser, account connection,
 automatic logging or source-schema migration has been implemented. The supported
 import today is still Rationale's own CSV format. Do not upload an arbitrary MT5
 report expecting it to be understood.
