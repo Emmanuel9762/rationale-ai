@@ -136,3 +136,18 @@ Each performance group shows winning, losing and break-even trade counts. These
 partition its closed trades with recorded P&L; missing P&L and incomplete trades
 remain separate. Select a count to inspect that outcome in the journal with the
 group and UTC entry dates preserved. A zero count opens an empty matching set.
+
+## Performance summary CSV (CP43)
+
+Use Export performance (CSV) on Performance to download setup, symbol and plan
+adherence breakdowns for the selected UTC entry dates. Each row includes its
+dimension, group, missing-label flag, dates, counts and recorded metrics. Adherence
+groups use stable keys such as followed, partly and unreviewed. Blank date bounds
+mean unrestricted. Empty results produce a header-only file. Blank metrics mean
+no applicable sample; measured zero remains zero, and ∞ means no recorded losses.
+Groups overlap across dimensions, so do not add their totals together. Currency
+conversion is not applied. This is a summary, not a trade import or database backup.
+
+Exports reject more than 2,000 combined group rows rather than truncate them.
+Narrow the dates if needed. Formula-like labels receive a protective apostrophe;
+recorded numeric values retain their decimal precision and negative signs.

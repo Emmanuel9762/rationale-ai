@@ -969,3 +969,35 @@ the measured sample, then follow a nonzero and zero outcome count.
 
 Verified locally: 70 tests, lint, typecheck, production build, full HTTP isolation
 and diff checks pass. Browser outcome navigation is covered by the CI gate.
+
+## CP43 — export period-scoped performance summaries
+
+Added an authenticated /performance/export CSV route and Performance download link.
+The report reuses tradeBreakdown for setup, symbol and adherence groups with the
+same inclusive UTC entry dates and owner scope as the page. Only dates apply;
+other journal filters are ignored as they are on Performance. Each row records its
+dimension, label, missing-label flag, bounds, counts and metrics. Missing metrics
+are blank, measured zero stays zero, and profit-only groups retain the infinity
+marker. Groups overlap across dimensions and the UI warns against adding totals.
+
+Each dimension query returns at most 2,001 groups; the combined report rejects
+more than 2,000 rows with 422, without partial CSV. Invalid/repeated/reversed dates
+return 400, unavailable exports return generic 503, and signed-out users are sent
+to sign-in. Responses use private/no-store headers. Shared CSV cell quoting now
+serves both trade and summary exports, preserving existing formula protection and
+exact signed decimal strings. No schema, dependency or environment change.
+
+Tests exercise exact decimals, quoted/multiline/formula labels, missing versus
+literal labels, absent metrics versus measured zeros, empty reports and the
+combined cap. HTTP checks cover owner separation, date scope, invalid input,
+private headers, empty/oversized exports and signed-out access. Chromium downloads
+the file and checks its name and selected-period summary. Existing trade export
+regressions also run. No live database mutation or production deployment.
+
+Acceptance: export a known period, compare a group row's counts and metrics with
+Performance, and verify the entry bounds. Use dimension when filtering the CSV;
+never sum setup, symbol and adherence totals together. Nine migrations remain.
+
+Verified locally: all 73 tests, lint, typecheck, production build, full HTTP
+isolation and diff checks pass. Browser download verification uses the CI gate.
+CP43 is stacked on CP42, which passed full CI including Chromium.
