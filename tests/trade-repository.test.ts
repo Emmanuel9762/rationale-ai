@@ -54,11 +54,13 @@ test("pagination handles an exact full page, overflow, and pages beyond the end"
       accountId: account.id, symbol: `BOUND${i}`, direction: "LONG", entryPrice: "1", quantity: "1",
       entryTime: new Date(Date.UTC(2026, 0, i + 1)),
     })));
+    assert.equal(await repo.count(user.id),25);
     const full = await repo.list(user.id);
     assert.equal(full.trades.length, 25);
     assert.equal(full.hasNext, false, "a full page alone must not imply another page");
     assert.deepEqual(await repo.list(user.id, 2), { trades: [], hasNext: false });
     const [oldest] = await db.insert(trades).values({ accountId: account.id, symbol: "OLDER", direction: "LONG", entryPrice: "1", quantity: "1", entryTime: new Date("2025-01-01T00:00:00Z") }).returning();
+    assert.equal(await repo.count(user.id),26);
     const first = await repo.list(user.id);
     const second = await repo.list(user.id, 2);
     assert.deepEqual(first.trades.map(t => t.id), full.trades.map(t => t.id));
@@ -89,6 +91,7 @@ test("tied entry times remain ordered across pages and other owners cannot shift
     })));
     const expected = Array.from({ length: 30 }, (_, i) => idFor(59 - i * 2));
     const repo = tradeRepository(db);
+    assert.equal(await repo.count(owner.id),30);
     const first = await repo.list(owner.id);
     const second = await repo.list(owner.id, 2);
     assert.deepEqual(first.trades.map(t => t.id), expected.slice(0, 25));

@@ -19,10 +19,10 @@ export function tradeRepository(database: Pick<typeof db, "select">) {
     return database.select({ trade: trades }).from(trades)
       .innerJoin(tradingAccounts, eq(trades.accountId, tradingAccounts.id));
   }
-  function filtered(userId: string, filters: JournalFilters) {
+  function conditions(userId: string, filters: JournalFilters) {
     const through = filters.to ? new Date(`${filters.to}T00:00:00.000Z`) : undefined;
     if (through) through.setUTCDate(through.getUTCDate() + 1);
-    return scoped().where(and(
+    return and(
       eq(tradingAccounts.userId, userId),
       filters.import ? sql`exists (
         select 1 from trade_import_rows r inner join trade_imports i on i.id = r.import_id
@@ -41,9 +41,18 @@ export function tradeRepository(database: Pick<typeof db, "select">) {
       filters.adherence ? eq(tradeGroup("adherence"), filters.adherence) : undefined,
       filters.from ? gte(trades.entryTime, new Date(`${filters.from}T00:00:00.000Z`)) : undefined,
       through ? lt(trades.entryTime, through) : undefined,
-    ));
+    );
+  }
+  function filtered(userId: string, filters: JournalFilters) {
+    return scoped().where(conditions(userId, filters));
   }
   return {
+    async count(userId: string, filters: JournalFilters = {}) {
+      const [row] = await database.select({ total: sql<number>`count(*)::int` }).from(trades)
+        .innerJoin(tradingAccounts, eq(trades.accountId, tradingAccounts.id))
+        .where(conditions(userId, filters));
+      return row.total;
+    },
     async exportRows(userId: string, filters: JournalFilters = {}) {
       const rows = await filtered(userId, filters).orderBy(desc(trades.entryTime), desc(trades.id)).limit(EXPORT_LIMIT + 1);
       if (rows.length > EXPORT_LIMIT) throw new ExportLimitError(`More than ${EXPORT_LIMIT} trades match. Narrow the filters before exporting.`);

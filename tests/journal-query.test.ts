@@ -32,6 +32,10 @@ test("journal combines filters before pagination and preserves ownership and UTC
     const repo=tradeRepository(db), owner=owners[0].id;
     const filters={symbol:"EURUSD",direction:"LONG",status:"open",from:"2026-01-02",to:"2026-01-02"} as const;
     const first=await repo.list(owner,1,filters), second=await repo.list(owner,2,filters);
+    assert.equal(await repo.count(owner,filters),26);
+    assert.equal(await repo.count(owners[1].id,filters),1);
+    assert.equal(await repo.count(owner,{symbol:"MISSING"}),0);
+    assert.equal(await repo.count(owner,{symbol:"BOUNDARY",from:"2026-01-02",to:"2026-01-02"}),2);
     assert.equal(first.trades.length,25);assert.equal(first.hasNext,true);
     assert.equal(second.trades.length,1);assert.equal(second.hasNext,false);
     assert.deepEqual([...first.trades,...second.trades].map(t=>t.id),matches.map(t=>t.id).sort().reverse());
@@ -73,6 +77,7 @@ test("drill-down journal and export match every performance group before paginat
           const parsed=parseJournalFilters(Object.fromEntries(sampleUrl.searchParams));
           assert.deepEqual(parsed.errors,[]);
           const sampleRows=await repo.exportRows(owners[0].id,parsed.filters);
+          assert.equal(await repo.count(owners[0].id,parsed.filters),sampleRows.length);
           assert.equal(sampleRows.length,group[sample],`${by}/${group.group}/${sample}`);
           const first=await repo.list(owners[0].id,1,parsed.filters),second=await repo.list(owners[0].id,2,parsed.filters);
           assert.deepEqual([...first.trades,...second.trades].map(t=>t.id),sampleRows.map(t=>t.id));

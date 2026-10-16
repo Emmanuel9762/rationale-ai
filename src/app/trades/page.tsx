@@ -13,7 +13,10 @@ export const dynamic = "force-dynamic";
 export default async function TradesPage({ searchParams }: { searchParams: Promise<JournalSearchParams> }) {
   const user = await requireCurrentUser();
   const { filters, page, errors } = parseJournalFilters(await searchParams);
-  const result = errors.length ? { trades: [], hasNext: false } : await tradeRepository(db).list(user.id, page, filters);
+  const repository = tradeRepository(db);
+  const [result, total] = errors.length ? [{ trades: [], hasNext: false }, 0] : await Promise.all([
+    repository.list(user.id, page, filters), repository.count(user.id, filters),
+  ]);
   const active = Object.keys(filters).length > 0;
   const field = "mt-1 block w-full rounded border border-zinc-700 bg-zinc-900 p-2";
   return <main className="min-h-screen bg-zinc-950 px-6 py-10 text-zinc-100">
@@ -38,6 +41,7 @@ export default async function TradesPage({ searchParams }: { searchParams: Promi
       <p className="text-sm text-zinc-400">Outcome filters use closed trades only (both exit price and exit time). Wins, losses and break-even use the sign of recorded P&amp;L; missing P&amp;L is separate.</p>
       {!errors.length && <p className="text-sm text-zinc-400"><a className="underline" href={journalHref(filters).replace("/trades", "/trades/export")}>Export matching trades (CSV)</a> · All matching pages, up to {EXPORT_LIMIT} trades. Includes notes and reviews, UTC times and recorded account-currency amounts; no conversion. Formula-like text gets a protective apostrophe. CSV is not a database backup.</p>}
       {errors.length > 0 ? <div role="alert" className="rounded-xl border border-red-900 p-4 text-red-300"><p>Check your filters:</p><ul className="list-inside list-disc">{errors.map(error => <li key={error}>{error}</li>)}</ul></div> : <>
+      <p role="status" aria-label="Journal result count" className="text-sm text-zinc-400">{`${total} matching ${total === 1 ? "trade" : "trades"} · ${result.trades.length} on this page.`}</p>
       {!result.trades.length ? <p className="rounded-xl border border-zinc-800 p-6">{page > 1 ? <>No trades on this page. <Link className="underline" href={journalHref(filters)}>Return to the first page</Link>.</> : active ? <>No trades match these filters. <Link className="underline" href="/trades">Clear filters</Link> to see your journal.</> : <>No trades yet. <Link className="underline" href="/trades/new">Log a trade</Link> to start your journal.</>}</p> : <div className="overflow-x-auto rounded-xl border border-zinc-800"><table className="w-full text-left text-sm">
         <thead className="bg-zinc-900 text-zinc-400"><tr>{["Symbol", "Direction", "Entry time (UTC)", "Status", "Recorded P&L", "Review"].map(label => <th key={label} className="p-4">{label}</th>)}</tr></thead>
         <tbody>{result.trades.map(trade => <tr key={trade.id} className="border-t border-zinc-800"><td className="p-4"><Link className="font-medium underline" href={tradeContextHref(trade.id, journalHref(filters, page))}>{trade.symbol}</Link></td><td className="p-4">{trade.direction}</td><td className="whitespace-nowrap p-4">{trade.entryTime.toISOString().slice(0, 16).replace("T", " ")}</td><td className="p-4">{trade.exitTime && trade.exitPrice !== null ? "Closed" : "Open / incomplete"}</td><td className="p-4">{trade.pnl ?? "Not recorded"}</td><td className="p-4"><Link className="underline" href={`${tradeContextHref(trade.id, journalHref(filters, page))}#review`}>{trade.reviewedAt ? "Reviewed" : "Unreviewed"}</Link></td></tr>)}</tbody>
