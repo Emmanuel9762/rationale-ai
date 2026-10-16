@@ -72,7 +72,7 @@ test("drill-down journal and export match every performance group before paginat
     const repo=tradeRepository(db), period={from:"2026-01-02",to:"2026-01-02"};
     for (const by of ["setup","symbol","adherence"] as const) {
       for (const group of await tradeBreakdown(db,owners[0].id,by,period)) {
-        for (const sample of ["total","open","missingPnl","measured"] as BreakdownSample[]) {
+        for (const sample of ["total","open","missingPnl","measured","wins","losses","breakeven"] as BreakdownSample[]) {
           const sampleUrl=new URL(breakdownJournalHref(by,group.group,period,sample),"https://example.test");
           const parsed=parseJournalFilters(Object.fromEntries(sampleUrl.searchParams));
           assert.deepEqual(parsed.errors,[]);

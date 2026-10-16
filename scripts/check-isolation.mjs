@@ -216,6 +216,7 @@ try {
   const outcomeRow=performanceAfter.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/g).find(row=>row.includes('OWNER_SETUP'));
   const outcomeCells=[...outcomeRow.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/g)].map(match=>decode(match[1]));
   assert.deepEqual(outcomeCells.slice(-4),['12.34','12.34','—','∞']);
+  for (const outcome of ['win','loss','breakeven']) assert.ok(performanceAfter.includes('/trades?setup=OWNER_SETUP&amp;outcome='+outcome));
   const winnerQuery='symbol=ONLY_A&outcome=win';
   const winnerHtml=await(await a.request('/trades?'+winnerQuery)).text();
   assert.ok(winnerHtml.includes(`href="${tradePath}?returnTo=`));
@@ -520,6 +521,15 @@ try {
       assert.equal(new URL(pages[0].url()).searchParams.get('from'),'2026-09-01');
       assert.ok((await pages[0].getByRole('link',{name:'Export matching trades (CSV)',exact:true}).getAttribute('href')).includes('outcome=measured'));
 
+      await pages[0].goto(base.replace('127.0.0.1','localhost')+'/performance?from=2026-09-01&to=2026-09-01');
+      await pages[0].getByRole('link',{name:'View 1 winning trades for symbol: BATCH_BROWSER',exact:true}).click();
+      await pages[0].getByRole('link',{name:'BATCH_BROWSER',exact:true}).waitFor();
+      assert.equal(new URL(pages[0].url()).searchParams.get('outcome'),'win');
+      assert.equal(new URL(pages[0].url()).searchParams.get('from'),'2026-09-01');
+      await pages[0].goBack();
+      await pages[0].getByRole('link',{name:'View 0 break-even trades for symbol: BATCH_BROWSER',exact:true}).click();
+      await pages[0].getByText('No trades match these filters.',{exact:false}).waitFor();
+      assert.equal(new URL(pages[0].url()).searchParams.get('outcome'),'breakeven');
       await pages[1].goto(base.replace('127.0.0.1','localhost')+'/performance');
       await pages[1].getByText('No trades yet.',{exact:false}).waitFor();
       await pages[1].goto(base.replace('127.0.0.1','localhost')+path);assert.ok(!(await pages[1].textContent('body')).includes('A private rationale'));

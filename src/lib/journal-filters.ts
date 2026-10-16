@@ -83,11 +83,14 @@ export function journalHref(filters: JournalFilters, page = 1) {
   return `/trades${query ? `?${query}` : ""}`;
 }
 
-export type BreakdownSample = "total" | "open" | "missingPnl" | "measured";
+export type BreakdownSample = "total" | "open" | "missingPnl" | "measured" | "wins" | "losses" | "breakeven";
 export function breakdownJournalHref(by: TradeGroupDimension, group: string | null, period: Pick<JournalFilters, "from" | "to">, sample: BreakdownSample = "total") {
   const selection: JournalFilters = sample === "open" ? {status:"open"}
     : sample === "missingPnl" ? {outcome:"missing"}
-    : sample === "measured" ? {outcome:"measured"} : {};
+    : sample === "measured" ? {outcome:"measured"}
+    : sample === "wins" ? {outcome:"win"}
+    : sample === "losses" ? {outcome:"loss"}
+    : sample === "breakeven" ? {outcome:"breakeven"} : {};
   if (by === "adherence") {
     if (!isPlanAdherenceGroup(group)) throw new Error("Invalid plan adherence group.");
     return journalHref({ ...selection, from: period.from, to: period.to, adherence: group });
