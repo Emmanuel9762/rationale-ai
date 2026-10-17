@@ -1159,3 +1159,24 @@ Verified locally: 86 tests, lint, typecheck, clean production build and full
 HTTP/Chromium workflows passed, including preset download/load, fresh confirmation,
 stale-result clearing and the unchanged no-write boundary. The existing restored
 Turbopack cache was corrupt; moving it aside resolved the build without code changes.
+
+## CP50 — downloadable paper CSV validation report
+
+Adds a local diagnostic CSV for every row-validation result, including all-invalid
+files. Original source record numbers, valid/invalid/repeated status, the earlier
+matching record and validation messages form a source-ordered correction checklist.
+No trade values or notes are exported. Text uses the existing spreadsheet-safe CSV
+escaping. The report deliberately cannot pass the trade-import header contract.
+Structural parse failures remain inline errors because there is no valid row result.
+
+Changing source, mapping, confirmation or loading settings invalidates the report
+along with the mapped preview. Repeated rows remain intact; reporting never writes
+trades, changes mappings or compares with existing journal records.
+Acceptance: create three date errors using the sample mapping, download diagnostics,
+verify three invalid records and no trade CSV download, then change a mapping and
+confirm the report disappears. No schema, environment or dependency changes.
+
+Verified locally: all 88 tests, lint, typecheck, production build, 11 protected
+routes, authentication/recovery fixtures and full HTTP/Chromium workflows passed.
+Browser coverage downloads an all-invalid report, checks diagnostics and confirms
+mapping changes remove it, with no POST or database writes from the mapper.
