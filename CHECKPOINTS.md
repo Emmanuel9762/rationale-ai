@@ -1139,3 +1139,23 @@ Verified locally: all 84 tests, lint, typecheck, clean production build, protect
 route checks and full HTTP/Chromium workflows pass. The mapped CSV preview was
 inspected at 390px width. A stale Turbopack cache was moved aside before the clean
 build. Final remote CI is required before marking the PR ready.
+
+## CP49 — reusable paper CSV mapping settings
+
+Adds explicit local JSON download/load for versioned column mappings. Settings
+contain source header names, not positions, trade rows or account confirmation.
+Names resolve against each new file, tolerating reordering while rejecting missing
+or ambiguous mapped columns, unknown fields, duplicates, incomplete required fields,
+invalid direction encodings and files over 16 KiB. No automatic browser persistence.
+Loading clears results and acknowledgement; asynchronous reads are generation-guarded
+and mapping controls are disabled while loading. Every file still needs validation.
+
+Acceptance: save sample mapping, change a field, load settings, verify restored
+choices and cleared confirmation, then validate again. Test reordered and renamed
+headers. Existing preview/import and no-write mapping boundaries remain unchanged.
+No schema, environment or dependency changes.
+
+Verified locally: 86 tests, lint, typecheck, clean production build and full
+HTTP/Chromium workflows passed, including preset download/load, fresh confirmation,
+stale-result clearing and the unchanged no-write boundary. The existing restored
+Turbopack cache was corrupt; moving it aside resolved the build without code changes.
