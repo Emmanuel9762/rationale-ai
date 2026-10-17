@@ -563,6 +563,16 @@ try {
       await pages[0].getByRole('button',{name:'Validate mapping',exact:true}).click();
       await pages[0].getByText('3 records: 0 valid, 3 invalid, 0 repeated. No trades saved.',{exact:true}).waitFor();
       assert.equal(await pages[0].getByRole('button',{name:'Download mapped CSV',exact:true}).count(),0);
+      const validationDownloadEvent=pages[0].waitForEvent('download');
+      await pages[0].getByRole('button',{name:'Download validation report',exact:true}).click();
+      const validationDownload=await validationDownloadEvent;
+      assert.equal(validationDownload.suggestedFilename(),'rationale-validation-report.csv');
+      const validationCsv=await readFile(await validationDownload.path(),'utf8');
+      assert.ok(validationCsv.includes('"source_record","status","duplicate_of","message"'));
+      assert.equal((validationCsv.match(/"invalid"/g)||[]).length,3);
+      assert.ok(!validationCsv.includes('EURUSD'));
+      await pages[0].getByLabel('Symbol',{exact:true}).selectOption('10');
+      assert.equal(await pages[0].getByRole('button',{name:'Download validation report',exact:true}).count(),0);
       await pages[0].getByRole('button',{name:'Clear mapping',exact:true}).click();
       assert.equal(await pages[0].getByRole('form',{name:'Paper CSV mapping',exact:true}).count(),0);
       assert.deepEqual(mapperRequests,[]);

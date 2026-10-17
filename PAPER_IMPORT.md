@@ -124,3 +124,22 @@ load the saved JSON. Symbol must return to Instrument, the checkbox must be clea
 and the old result/download must disappear. Reconfirm and validate: 3 valid records.
 A renamed mapped column must be rejected; do not rename it back without checking
 that its meaning and units are still the same. Names alone cannot establish units.
+
+## Work through validation problems — CP50
+
+After **Validate mapping**, choose **Download validation report**, including when
+some or all records are invalid. The CSV lists source_record, status, duplicate_of
+and message, ordered by original source position. Status is valid, invalid or
+repeated (a valid record matching an earlier valid record in this same file).
+It does not compare against existing journal entries or remove repeated trades.
+
+The report is a correction checklist, not a trade-import file. Source numbers
+include the header and blank CSV records; a quoted multiline field is one record,
+so these numbers are not necessarily text-editor lines or spreadsheet row numbers.
+Trade values and notes are not included. Structural CSV errors (such as broken
+quoting) must be fixed before row validation can produce a report.
+
+Acceptance: map Entry time to Result and unmap Recorded P&L, then validate.
+Download the report: it must contain three invalid records and their diagnostics,
+while Download mapped CSV remains unavailable. Changing any mapping removes the
+old report. Correct the source/mapping and validate again before importing.

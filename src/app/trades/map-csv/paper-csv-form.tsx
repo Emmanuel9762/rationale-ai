@@ -5,6 +5,7 @@ import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { CSV_MAX_BYTES, CSV_REQUIRED_COLUMNS } from "@/lib/trade-csv-preview";
 import { inspectPaperCsv, mapPaperCsv, PAPER_FIELDS, PAPER_LABELS, type PaperMapping } from "@/lib/paper-csv";
 
+import { paperValidationReport } from "@/lib/paper-validation-report";
 import { PRESET_MAX_BYTES, readMappingPreset, writeMappingPreset } from "@/lib/paper-mapping-preset";
 
 export default function PaperCsvForm() {
@@ -97,6 +98,8 @@ export default function PaperCsvForm() {
     {error && <p role="alert" className="rounded-lg border border-red-900 p-4 text-red-300">{error}</p>}
     {result && <section className="journal-detail-section space-y-4" aria-label="Mapped CSV results">
       <h2>3. Check the result</h2>
+      <button type="button" className="underline" onClick={()=>downloadText(paperValidationReport(result.preview),"rationale-validation-report.csv","text/csv;charset=utf-8")}>Download validation report</button>
+      <p className="text-sm text-zinc-400">The report lists source record numbers, validation errors and repeats within this file. It is a correction checklist, not an import file. Quoted multiline text counts as one record; record numbers may differ from spreadsheet row numbers.</p>
       <p role="status">{result.preview.total} records: {result.preview.rows.length} valid, {result.preview.errors.length} invalid, {result.preview.rows.filter(row=>row.duplicateOf!==undefined).length} repeated. No trades saved.</p>
       <p className="break-words text-sm text-zinc-400">Omitted source columns: {result.ignoredHeaders.join(", ") || "none"}. Formula-like text receives a protective apostrophe in the preview and downloaded file.</p>
       {!!result.preview.errors.length && <div role="alert"><p>Fix these source records, then read the corrected file again:</p><ul className="list-inside list-disc text-red-300">{result.preview.errors.map(error=><li key={error.record}>Record {error.record}: {error.message}</li>)}</ul></div>}
