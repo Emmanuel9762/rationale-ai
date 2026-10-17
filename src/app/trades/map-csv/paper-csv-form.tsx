@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { CSV_MAX_BYTES, CSV_REQUIRED_COLUMNS } from "@/lib/trade-csv-preview";
 import { inspectPaperCsv, mapPaperCsv, PAPER_FIELDS, PAPER_LABELS, type PaperMapping } from "@/lib/paper-csv";
+
+import { PRESET_MAX_BYTES, readMappingPreset, writeMappingPreset } from "@/lib/paper-mapping-preset";
 
 export default function PaperCsvForm() {
   const generation = useRef(0);
@@ -32,6 +34,31 @@ export default function PaperCsvForm() {
     } catch(e) { if(current===generation.current) setError(e instanceof TypeError ? "Use a UTF-8 text CSV." : e instanceof Error ? e.message : "Could not read CSV."); }
     finally { if(current===generation.current) setBusy(false); }
   }
+  async function loadPreset(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const current = ++generation.current;
+    invalidate(); setConfirmed(false); setBusy(true);
+    try {
+      if (file.size > PRESET_MAX_BYTES) throw new Error("Mapping files must be no larger than 16 KiB.");
+      const text = new TextDecoder("utf-8", {fatal:true}).decode(await file.arrayBuffer());
+      const preset = readMappingPreset(text, headers);
+      if (current !== generation.current) return;
+      setMapping(preset.mapping); setDirection(preset.direction);
+    } catch (e) {
+      if (current === generation.current) setError(e instanceof Error ? e.message : "Could not load mapping.");
+    } finally { if (current === generation.current) setBusy(false); }
+  }
+  function downloadText(text: string, filename: string, type: string) {
+    const url = URL.createObjectURL(new Blob([text], {type}));
+    const link = document.createElement("a"); link.href=url; link.download=filename; link.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  function savePreset() {
+    try { downloadText(writeMappingPreset(headers,mapping,direction), "rationale-mapping.json", "application/json"); }
+    catch(e) { setError(e instanceof Error ? e.message : "Could not save mapping."); }
+  }
   function preview(event: FormEvent) {
     event.preventDefault(); invalidate();
     try { setResult(mapPaperCsv(source,mapping,direction,confirmed)); }
@@ -39,9 +66,7 @@ export default function PaperCsvForm() {
   }
   function download() {
     if(!result || result.preview.errors.length) return;
-    const url = URL.createObjectURL(new Blob([result.csv],{type:"text/csv;charset=utf-8"}));
-    const link = document.createElement("a"); link.href=url; link.download="rationale-paper-trades.csv"; link.click();
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    downloadText(result.csv,"rationale-paper-trades.csv","text/csv;charset=utf-8");
   }
   return <div className="space-y-6">
     <form onSubmit={read} onReset={clear} className="journal-detail-section space-y-4">
@@ -52,6 +77,12 @@ export default function PaperCsvForm() {
     </form>
     {!!headers.length && <form onSubmit={preview} className="journal-detail-section space-y-5" aria-label="Paper CSV mapping">
       <h2>2. Match journal fields</h2>
+      <details className="space-y-3"><summary>Reuse a mapping</summary>
+        <p className="text-sm text-zinc-400">Mapping files contain column names and direction choices only, never trade rows. Loading matches exact names even after columns move. Review the choices and confirm this file again.</p>
+        <label className="block text-sm">Mapping JSON<input className="journal-field" type="file" accept=".json,application/json" disabled={busy} onChange={loadPreset} /></label>
+        <button type="button" className="underline" disabled={busy} onClick={savePreset}>Download mapping settings</button>
+      </details>
+      <fieldset disabled={busy} className="space-y-5">
       <p className="text-sm text-zinc-400">Only exact Rationale field names are matched automatically. Review every selection. Unmapped source columns will be omitted.</p>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{PAPER_FIELDS.map(field=><label key={field} className="text-sm">{PAPER_LABELS[field]}{(CSV_REQUIRED_COLUMNS as readonly string[]).includes(field) ? " (required)" : " (optional)"}<select aria-label={PAPER_LABELS[field]} required={(CSV_REQUIRED_COLUMNS as readonly string[]).includes(field)} className="journal-field" value={mapping[field] ?? ""} onChange={event=>{
         const next={...mapping}; if(event.target.value==="") delete next[field]; else next[field]=Number(event.target.value);
@@ -61,6 +92,7 @@ export default function PaperCsvForm() {
       <p className="text-sm text-zinc-300">Times must already be UTC ISO values, such as 2026-10-01T09:30:00Z. Decimal numbers must use a dot, without currency symbols or thousands separators. Quantity is taken as supplied; no lot-size conversion. No time-zone conversion, fee calculation or P&amp;L calculation is performed.</p>
       <label className="flex gap-3 text-sm"><input type="checkbox" required checked={confirmed} onChange={event=>{setConfirmed(event.target.checked);invalidate();}} />Each row is one journal trade; quantities are understood and recorded amounts use my account currency.</label>
       <button className="journal-primary">Validate mapping</button>
+      </fieldset>
     </form>}
     {error && <p role="alert" className="rounded-lg border border-red-900 p-4 text-red-300">{error}</p>}
     {result && <section className="journal-detail-section space-y-4" aria-label="Mapped CSV results">

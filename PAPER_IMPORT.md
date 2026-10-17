@@ -105,3 +105,22 @@ The production access check includes the new authenticated route. Chromium
 checks map/validate/download, mobile width, stale-result invalidation, error/reset,
 no POST requests or database writes, and the existing import-preview handoff.
 No migration, external provider, broker credential or runtime dependency added.
+
+## Reuse your mapping — CP49
+
+After selecting all required fields, expand **Reuse a mapping** and choose
+**Download mapping settings**. Keep the resulting rationale-mapping.json.
+It contains only column names, field choices and direction encoding, not trades,
+account identifiers or the acknowledgement. No settings are stored in the browser.
+
+For a later CSV, read its columns first, then choose the JSON under **Mapping JSON**.
+Exact column names are matched even if their order changed. Missing mapped names,
+unsupported versions or invalid choices reject the settings without applying them.
+Extra CSV columns remain omitted unless you map them explicitly. Review the choices,
+confirm the whole-trade/currency checkbox again and validate the new file.
+
+Acceptance: save the sample's mapping, change Symbol to External reference, then
+load the saved JSON. Symbol must return to Instrument, the checkbox must be clear,
+and the old result/download must disappear. Reconfirm and validate: 3 valid records.
+A renamed mapped column must be rejected; do not rename it back without checking
+that its meaning and units are still the same. Names alone cannot establish units.
