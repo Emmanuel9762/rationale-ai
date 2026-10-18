@@ -63,6 +63,7 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
       </form>
       <EntryDatePresets pathname="/performance" period={errors.length ? {} : period} />
       {!errors.length && <p className="text-sm text-zinc-400"><a className="underline" href={journalHref(period).replace("/trades", "/performance/export")}>Export performance (CSV)</a> · Up to {PERFORMANCE_EXPORT_LIMIT} group rows across all four breakdowns. Groups overlap across dimensions; do not add their totals together. This summary cannot be imported as trades. Missing metrics are blank; ∞ means no recorded losses. Formula-like labels receive a protective apostrophe.</p>}
+      {!errors.length && <Link className="inline-block underline" href={journalHref(period).replace("/trades","/review-evidence")}>Review evidence for these dates</Link>}
       <div className="space-y-2 rounded-xl border border-zinc-800 p-5 text-sm text-zinc-300">
         <p>Win rate is wins divided by closed trades with recorded P&L. Wins, losses and break-even counts add up to the measured sample. Break-even trades count in the sample but are not wins. A closed trade has both an exit price and exit time.</p>
         <p>Open / incomplete trades and closed trades missing P&L are excluded from performance metrics. Win rate and recorded P&L show a dash when there are no measured results.</p>

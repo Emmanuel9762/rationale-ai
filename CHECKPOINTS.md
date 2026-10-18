@@ -1204,3 +1204,24 @@ metadata omission, prompt-like text and explicit Unicode truncation.
 Verified locally: all 91 tests passed; lint and typecheck passed after adapting
 BigInt construction to the existing TypeScript target. The three evidence tests
 were rerun after that compatibility fix and passed. Full CI follows publication.
+
+## CP52 — inspect review evidence in the journal
+
+Adds the authenticated /review-evidence page using CP51's bounded query, linked
+from Dashboard and Performance with date carryover and from the journal. Shows
+coverage, missing rationale/setup/review text, exact included P&L, partial-snapshot
+warnings and expandable per-trade evidence. Source links preserve the selected
+entry dates in the existing journal return context. No model call or data writes.
+
+Invalid or repeated date parameters suppress the evidence query and show errors;
+empty periods explain recovery. Text renders through React escaping, with visible
+truncation markers. The page distinguishes reviewed status from narrative coverage
+and states limits around current edits, currency assumptions and absent risk plans.
+REVIEW_EVIDENCE.md documents acceptance and the next provider decision.
+
+Verified locally: lint, typecheck, production build, all 12 protected-route checks
+and full HTTP/Chromium workflows passed. The 91-test suite passed in CP51; CP52 adds
+HTTP and browser coverage for owner isolation, dates/empty results, no writes,
+period carryover, evidence expansion, mobile overflow, source navigation and invalid
+date recovery. A 390px screenshot was inspected. The browser navigation assertion
+was corrected to await the destination before reading its URL.
