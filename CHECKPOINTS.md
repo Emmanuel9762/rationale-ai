@@ -1180,3 +1180,27 @@ Verified locally: all 88 tests, lint, typecheck, production build, 11 protected
 routes, authentication/recovery fixtures and full HTTP/Chromium workflows passed.
 Browser coverage downloads an all-invalid report, checks diagnostics and confirms
 mapping changes remove it, with no POST or database writes from the mapper.
+
+## CP51 — bounded review evidence
+
+The paper CSV workflow is sufficient pending a real source export. This checkpoint
+starts the AI-review foundation without a provider call: a single owner-scoped query
+selects at most 101 records, ordered by entry time and ID descending, and produces
+a versioned evidence snapshot of the newest 100 trades for validated UTC entry dates.
+Only explicitly listed trade fields enter the snapshot; account identity, email,
+submission keys and hashes are omitted. Trade IDs/revisions remain for traceability.
+
+Coverage and exact recorded P&L describe only included trades. A hasMore flag warns
+when older matching entries are excluded. Closed means both exit fields; open P&L
+is ignored, missing closed P&L is separate, and no measured sample yields null rather
+than zero. Integer-cent arithmetic avoids floating-point totals. Each narrative field
+is capped at 500 Unicode code points, with per-trade and aggregate truncation markers.
+Text remains untrusted evidence, never instructions. No model, cost, write or migration.
+
+Acceptance: fixture tests cover ownership, forged owner params, inclusive UTC dates,
+invalid/repeated bounds, deterministic caps, empty results, exact decimal arithmetic,
+metadata omission, prompt-like text and explicit Unicode truncation.
+
+Verified locally: all 91 tests passed; lint and typecheck passed after adapting
+BigInt construction to the existing TypeScript target. The three evidence tests
+were rerun after that compatibility fix and passed. Full CI follows publication.
