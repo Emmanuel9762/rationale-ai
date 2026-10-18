@@ -1225,3 +1225,26 @@ HTTP and browser coverage for owner isolation, dates/empty results, no writes,
 period carryover, evidence expansion, mobile overflow, source navigation and invalid
 date recovery. A 390px screenshot was inspected. The browser navigation assertion
 was corrected to await the destination before reading its URL.
+
+## CP53 — AI review request and response boundary
+
+Adds provider-neutral server-side request preparation and strict response validation.
+A SHA-256 identifier binds output to the exact CP51 evidence snapshot. Fixed review
+instructions remain separate from JSON journal data. Empty evidence is rejected;
+input envelopes are bounded to 512 KiB and responses to 16 KiB.
+
+The versioned response has separate observations/hypotheses, evidence references,
+questions and one process experiment. Unknown/missing keys, bad types, duplicate or
+foreign references, stale snapshot IDs, invalid JSON and excessive lengths/counts
+fail closed. Metrics and coverage limitations are attached from application evidence,
+not accepted as model-authored values. No provider, endpoint, UI, write or migration.
+
+This validates structure and reference membership, not semantic truth. Free-text
+claims may still be unsupported; AI_REVIEW_CONTRACT.md makes that limitation explicit
+and requires real-provider evaluation and escaped draft rendering in future work.
+Seven synthetic tests cover request separation, adversarial output, limits, stale
+snapshots, empty evidence and deterministic facts/caveats.
+
+Verified locally: all 98 tests, lint, typecheck and diff checks passed. Full remote
+CI (including production build and browser regressions) must pass before PR readiness.
+No new manual browser action is required because this checkpoint has no UI change.
