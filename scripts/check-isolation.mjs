@@ -132,6 +132,19 @@ try {
   const bCreated=await b.submit('/trades/new',{...input,symbol:'ONLY_B',rationale:'B private rationale',submissionKey,accountId:aTrade.account_id,userId:'00000000-0000-4000-8000-000000000000'});
   assert.equal(bCreated.status,303);
   const bTrade=(await database.query("select * from trades where symbol='ONLY_B'")).rows[0];assert.notEqual(bTrade.account_id,aTrade.account_id);
+  const evidenceBefore=(await database.query('select count(*)::int n from trades')).rows[0].n;
+  for(const [client,own,other] of [[a,'A private rationale','B private rationale'],[b,'B private rationale','A private rationale']]) {
+    const evidenceHtml=await(await client.request('/review-evidence?from=2026-01-01&to=2026-01-01&userId='+aTrade.account_id)).text();
+    assert.ok(evidenceHtml.includes(own)); assert.ok(!evidenceHtml.includes(other));
+    assert.match(evidenceHtml,/No AI analysis has been generated/);
+  }
+  assert.match(await(await a.request('/review-evidence?from=2099-01-01')).text(),/No trades match/);
+  for(const query of ['from=bad','from=2026-02-01&to=2026-01-01','from=2026-01-01&from=2026-01-02']) {
+    const html=await(await a.request('/review-evidence?'+query)).text();
+    assert.match(html,/Check your dates/); assert.ok(!html.includes('A private rationale'));
+  }
+  assert.equal((await database.query('select count(*)::int n from trades')).rows[0].n,evidenceBefore);
+  console.log('Review evidence HTTP: owner isolation, date validation, empty state and no writes passed.');
   const updated=await a.submit(editPath,{...input,notes:'Owner correction'},editHtml);assert.equal(updated.status,303);
   assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,'Owner correction');
   const revisionFrom=html=>html.match(/name="revision"[^>]*value="([^"]+)"/)[1];
@@ -397,6 +410,26 @@ try {
       await pages[0].locator('[name="pnl"]').fill('');
       await pages[0].getByRole('button',{name:'Save trade',exact:true}).click();await pages[0].waitForURL(/\/trades\/[a-f0-9-]+$/);
       const path=new URL(pages[0].url()).pathname;await pages[0].reload();assert.ok((await pages[0].textContent('body')).includes('A private rationale'));
+      await pages[0].goto(base.replace('127.0.0.1','localhost')+'/performance?from=2026-01-01&to=2026-01-01');
+      await pages[0].getByRole('link',{name:'Review evidence for these dates',exact:true}).click();
+      await pages[0].getByRole('heading',{name:'Review evidence',exact:true}).waitFor();
+      assert.equal(new URL(pages[0].url()).searchParams.get('from'),'2026-01-01');
+      await pages[0].getByText('Read evidence',{exact:true}).click();
+      await pages[0].getByText('A private rationale',{exact:true}).waitFor();
+      await pages[0].setViewportSize({width:390,height:844});
+      assert.ok(await pages[0].evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+      if(process.env.JOURNAL_SCREENSHOTS) await pages[0].screenshot({path:process.env.JOURNAL_SCREENSHOTS+'-evidence.png',fullPage:true});
+      await pages[0].getByRole('link',{name:'Open trade',exact:true}).click();
+      await pages[0].waitForURL(url=>url.pathname===path);
+      assert.equal(new URL(pages[0].url()).pathname,path);
+      assert.equal(new URL(pages[0].url()).searchParams.get('returnTo'),'/trades?from=2026-01-01&to=2026-01-01');
+      await pages[0].goto(base.replace('127.0.0.1','localhost')+'/review-evidence?from=bad');
+      await pages[0].getByRole('alert').filter({hasText:'Check your dates'}).waitFor();
+      await pages[0].getByRole('link',{name:'All time',exact:true}).click();
+      await pages[0].getByRole('region',{name:'Evidence coverage',exact:true}).waitFor();
+      assert.equal(await pages[0].getByLabel('From entry date (UTC)',{exact:true}).inputValue(),'');
+      await pages[0].setViewportSize({width:1440,height:1000});
+      console.log('Review evidence browser: date carryover, text inspection, mobile width, trade navigation and recovery passed.');
       const journalContext='/trades?symbol=ONLY_A&review=unreviewed&from=2026-01-01&to=2026-01-01';
       await pages[0].goto(base.replace('127.0.0.1','localhost')+journalContext);
       await pages[0].getByRole('status',{name:'Journal result count',exact:true}).filter({hasText:'1 matching trade · 1 on this page.'}).waitFor();

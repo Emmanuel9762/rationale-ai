@@ -55,7 +55,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Jou
       <form action="/" method="get" key={`${period.from}:${period.to}`} aria-label="Dashboard dates" className="flex flex-wrap items-end gap-4 rounded-xl border border-zinc-800 p-5">
         {([['from','From entry date (UTC)'],['to','Through entry date (UTC)']] as const).map(([name,label]) => <div key={name}><label htmlFor={name} className="block text-sm">{label}</label><input id={name} name={name} type="date" defaultValue={typeof params[name] === "string" ? params[name] : ""} className="mt-2 rounded-lg border border-zinc-700 bg-zinc-950 p-2" /></div>)}
         <button className="rounded-lg bg-zinc-100 px-4 py-2 text-zinc-950">Apply dates</button><Link className="underline" href="/">All time</Link>
-        {!errors.length && <Link className="underline" href={journalHref(period).replace('/trades','/performance')}>View performance for these dates</Link>}
+        {!errors.length && <><Link className="underline" href={journalHref(period).replace('/trades','/performance')}>View performance for these dates</Link><Link className="underline" href={journalHref(period).replace('/trades','/review-evidence')}>Review evidence for these dates</Link></>}
       </form>
       <EntryDatePresets pathname="/" period={errors.length ? {} : period} />
       <p className="text-sm text-zinc-400">Dates select when trades were entered, even if they closed later. Both UTC boundary days are included. Blank dates are unrestricted; other journal filters do not apply here.</p>
