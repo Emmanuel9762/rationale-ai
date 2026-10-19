@@ -1248,3 +1248,26 @@ snapshots, empty evidence and deterministic facts/caveats.
 Verified locally: all 98 tests, lint, typecheck and diff checks passed. Full remote
 CI (including production build and browser regressions) must pass before PR readiness.
 No new manual browser action is required because this checkpoint has no UI change.
+
+## CP54 — bounded review request runner
+
+Completes CP53's pending handoff: exact-head full CI passed and PR #37 is ready.
+Adds an internal server runner connecting owner-scoped evidence loading, request
+preparation, an injected provider and strict output validation. Defaults disabled;
+requires explicit confirmation. The session-authenticated owner ID must be supplied
+by the future route/action. Invalid dates/no data are rejected before provider work.
+
+A shared deadline/cancellation signal covers loading and generation. Only validated
+responses return a draft; errors use fixed messages without raw provider data and
+never auto-retry. Evidence is cloned before the provider wait to bind validation
+to the dispatched snapshot. Late loader completion cannot start a cancelled call.
+
+A reused runner instance limits per-owner overlap and total active work. Slots remain
+held until dependencies actually settle, including after timeout, to prevent immediate
+duplicate work. Guards are process-local, not durable quotas or billing guarantees.
+No provider selection, HTTP endpoint, UI, database write, environment or dependency
+change. AI_REVIEW_CONTRACT.md documents the required next integration controls.
+
+Verified locally: all 106 tests, lint, typecheck and diff checks passed. Eight new
+runner tests use simulated providers and no network/credentials. Full remote CI
+must pass before the dependent PR is marked ready. No new manual UI check is needed.

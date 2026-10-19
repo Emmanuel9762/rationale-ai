@@ -80,3 +80,45 @@ Developer acceptance: `node --import tsx --test tests/review-response.test.ts`.
 The seven tests cover request separation, snapshot identity, exact supplied metrics,
 foreign/duplicate citations, strict fields, stale evidence, byte/Unicode limits,
 empty evidence and mandatory limitations. All fixtures are synthetic.
+
+## Request runner — CP54
+
+`createReviewRunner` coordinates the evidence loader, provider function and CP53
+validator. It is an internal server service, not a public endpoint or authentication
+boundary. It defaults to disabled. No production provider is registered by CP54.
+
+A caller must supply an authenticated owner ID from the session and an explicit
+confirmation. The runner validates entry dates, loads evidence for that owner and
+clones it before any provider wait, then prepares one bounded request. Only a response
+passing CP53 validation can return a draft. No automatic retries occur. Disabled,
+unconfigured, unconfirmed, invalid-date or pre-cancelled requests do not load evidence;
+empty evidence never reaches the provider. Provider/loader exception details and raw
+responses are not returned or logged.
+
+The default deadline is 30 seconds across loading and generation, configurable from
+1 ms to 60 seconds. The same AbortSignal is passed to both dependencies. Timeout or
+caller cancellation returns a failure without a draft, even if a dependency ignores
+the signal. Late results cannot become successful user responses. A slow evidence
+loader resolving after cancellation cannot start a provider call.
+
+One runner instance admits at most one request per owner and four active owners by
+default (configurable from 1 to 16). Reuse the instance; creating it per request defeats
+these guards. A cancelled/timed-out task keeps its slot until the actual dependency
+settles, preventing immediate overlapping retries. If it never settles, the slot
+remains occupied for that instance's lifetime. Providers/loaders must honor abort.
+These guards are process-local only: they are not durable quotas, cross-instance
+idempotency or a spending cap. Cancellation does not guarantee upstream billing stops.
+
+The injected provider receives separate instructions/input, an AbortSignal and the
+16 KiB output-byte ceiling. A real adapter must bound reading the upstream response,
+set provider token limits, implement cancellation and normalize provider behavior;
+post-response validation alone does not bound upstream cost or buffering.
+
+Future route/action integration must authenticate, enforce a durable spending/request
+budget and get explicit invocation before calling the runner. No route/action or live
+UI is connected yet. A provider/model and spending ceiling remain decisions.
+
+Acceptance: `node --import tsx --test tests/review-runner.test.ts` uses simulated
+providers only. It covers successful validation, gating, owner/date forwarding,
+evidence snapshot isolation, safe errors, no retries, per-owner/capacity limits,
+cancellation, timeout and late loader/provider settlement. No API key is needed.
