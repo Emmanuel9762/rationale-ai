@@ -1,8 +1,8 @@
 "use client";
 import { useActionState, useEffect, useState } from "react";
 import { requestReset, resetPassword, sendVerification, verifyEmail, type RecoveryState } from "./recovery-actions";
-const input = "mt-2 block w-full rounded border border-zinc-700 bg-zinc-900 p-3";
-const button = "rounded bg-zinc-100 px-5 py-3 text-zinc-950 disabled:opacity-50";
+const input = "journal-field";
+const button = "journal-primary";
 const initial: RecoveryState = { error: "" };
 function Status({ state }: { state: RecoveryState }) {
   return <>{state.error && <p role="alert" className="text-red-300">{state.error}</p>}{state.notice && <p role="status">{state.notice}</p>}</>;

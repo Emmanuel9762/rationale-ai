@@ -1,3 +1,4 @@
+import { JournalShell } from "@/app/journal-shell";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import Link from "next/link";
 import { tradeContextHref } from "@/lib/journal-navigation";
@@ -22,15 +23,14 @@ export default async function TradesPage({ searchParams }: { searchParams: Promi
   const filterNames: Record<keyof JournalFilters, string> = {symbol:"Symbol",setup:"Setup",missing:"Missing label",direction:"Direction",status:"Status",outcome:"Outcome",review:"Review",adherence:"Plan adherence",from:"From",to:"Through",import:"Import batch"};
   const filterValue = (key: keyof JournalFilters, value: string) => key === "outcome" ? OUTCOME_LABELS[value as keyof typeof OUTCOME_LABELS] : key === "adherence" ? PLAN_ADHERENCE_LABELS[value as keyof typeof PLAN_ADHERENCE_LABELS] : value;
 
-  return <main className="journal-shell min-h-screen text-zinc-100">
-    <div className="mx-auto max-w-6xl space-y-6">
-      <nav className="journal-nav" aria-label="Main navigation"><Link className="journal-brand" href="/">Rationale<span>AI</span></Link><div className="flex flex-wrap gap-5"><Link href="/">Dashboard</Link><Link href="/trades" aria-current="page">Journal</Link><Link href="/performance">Performance</Link><Link href="/review-evidence">Review evidence</Link><Link href="/account">Account</Link></div></nav>
-      <header className="journal-heading"><div><p className="journal-eyebrow">Observe. Reflect. Improve.</p><h1>Trade history</h1><p className="mt-2 text-zinc-400">Your decisions, execution and reflections in one place.</p></div><Link className="journal-primary" href="/trades/new">Log a trade <span aria-hidden="true">↗</span></Link></header>
-      <div className="journal-tools"><Link className="journal-review-link" href={journalHref({status:"closed",review:"unreviewed"})}>Needs review <span aria-hidden="true">→</span></Link><span className="text-sm text-zinc-400">Closed trades waiting for reflection</span><div className="flex flex-wrap gap-4 sm:ml-auto"><Link href="/trades/preview">Preview CSV</Link><Link href="/trades/imports">Import history</Link></div></div>
+  return <JournalShell active="journal">
+
+      <header className="journal-heading"><div><p className="journal-eyebrow">Observe. Reflect. Improve.</p><h1>Trade history</h1><p className="mt-2 text-muted">Your decisions, execution and reflections in one place.</p></div><Link className="journal-primary" href="/trades/new">Log a trade <span aria-hidden="true">↗</span></Link></header>
+      <div className="journal-tools"><Link className="journal-review-link" href={journalHref({status:"closed",review:"unreviewed"})}>Needs review <span aria-hidden="true">→</span></Link><span className="text-sm text-muted">Closed trades waiting for reflection</span><div className="flex flex-wrap gap-4 sm:ml-auto"><Link href="/trades/preview">Preview CSV</Link><Link href="/trades/imports">Import history</Link></div></div>
       <details className="journal-filter-panel" open={active || errors.length > 0}><summary>Filters <span>{active ? Object.keys(filters).length + " active" : "Symbol, outcome, review & dates"}</span></summary>
       <form action="/trades" method="get" key={journalHref(filters)} className="journal-filters" aria-label="Journal filters">
         <div className="journal-section-heading"><h2>Find your trades</h2><span>Combine filters to narrow the journal</span></div>
-        {filters.import && <div className="mx-5 mt-4"><label>Import batch<input className={field} name="import" value={filters.import} readOnly /></label><p className="text-sm text-zinc-400">Only linked trades from this batch are shown. Older batches may have no links. <Link href="/trades/imports" className="underline">Import history</Link> shows original counts.</p></div>}
+        {filters.import && <div className="mx-5 mt-4"><label>Import batch<input className={field} name="import" value={filters.import} readOnly /></label><p className="text-sm text-muted">Only linked trades from this batch are shown. Older batches may have no links. <Link href="/trades/imports" className="underline">Import history</Link> shows original counts.</p></div>}
         <fieldset className="journal-filter-group"><legend>01 · Trade</legend><div className="journal-filter-grid">
         <label>Symbol (exact)<input className={field} name="symbol" defaultValue={filters.symbol ?? ""} maxLength={20} placeholder="e.g. EURUSD" /></label>
         <label>Setup (exact, case-sensitive)<input className={field} name="setup" defaultValue={filters.setup ?? ""} maxLength={100} placeholder="e.g. Breakout" /></label>
@@ -60,9 +60,9 @@ export default async function TradesPage({ searchParams }: { searchParams: Promi
         <p>CSV exports include all matching pages, up to {EXPORT_LIMIT} trades, with notes, reviews and UTC times. Amounts use recorded account currency; no conversion. Formula-like text gets a protective apostrophe. CSV is not a database backup.</p>
       </div></details>
       {errors.length > 0 ? <div role="alert" className="rounded-xl border border-red-900 p-4 text-red-300"><p>Check your filters:</p><ul className="list-inside list-disc">{errors.map(error => <li key={error}>{error}</li>)}</ul></div> : <>
-      <div className="journal-results-heading"><div><h2>Entries</h2><p role="status" aria-label="Journal result count" className="text-sm text-zinc-400">{`${total} matching ${total === 1 ? "trade" : "trades"} · ${result.trades.length} on this page.`}</p></div><a className="journal-secondary" href={journalHref(filters).replace("/trades", "/trades/export")}>Export matching trades (CSV)</a></div>
-      {!result.trades.length ? <p className="rounded-xl border border-zinc-800 p-6">{page > 1 ? <>No trades on this page. <Link className="underline" href={journalHref(filters)}>Return to the first page</Link>.</> : active ? <>No trades match these filters. <Link className="underline" href="/trades">Clear filters</Link> to see your journal.</> : <>No trades yet. <Link className="underline" href="/trades/new">Log a trade</Link> to start your journal.</>}</p> : <div className="journal-table-wrap"><table className="journal-table w-full text-left text-sm"><caption className="sr-only">Matching journal entries, newest entry first</caption>
-        <thead className="bg-zinc-900 text-zinc-400"><tr>{["Symbol", "Direction", "Entry time (UTC)", "Status", "Recorded P&L", "Review"].map(label => <th key={label} className="p-4">{label}</th>)}</tr></thead>
+      <div className="journal-results-heading"><div><h2>Entries</h2><p role="status" aria-label="Journal result count" className="text-sm text-muted">{`${total} matching ${total === 1 ? "trade" : "trades"} · ${result.trades.length} on this page.`}</p></div><a className="journal-secondary" href={journalHref(filters).replace("/trades", "/trades/export")}>Export matching trades (CSV)</a></div>
+      {!result.trades.length ? <p className="rounded-xl border border-line p-6">{page > 1 ? <>No trades on this page. <Link className="underline" href={journalHref(filters)}>Return to the first page</Link>.</> : active ? <>No trades match these filters. <Link className="underline" href="/trades">Clear filters</Link> to see your journal.</> : <>No trades yet. <Link className="underline" href="/trades/new">Log a trade</Link> to start your journal.</>}</p> : <div className="journal-table-wrap"><table className="journal-table w-full text-left text-sm"><caption className="sr-only">Matching journal entries, newest entry first</caption>
+        <thead className="bg-panel text-muted"><tr>{["Symbol", "Direction", "Entry time (UTC)", "Status", "Recorded P&L", "Review"].map(label => <th key={label} className="p-4">{label}</th>)}</tr></thead>
         <tbody>{result.trades.map(trade => {
           const closed = Boolean(trade.exitTime && trade.exitPrice !== null);
           const tone = !closed || trade.pnl === null ? "" : Number(trade.pnl) > 0 ? "positive" : Number(trade.pnl) < 0 ? "negative" : "";
@@ -78,6 +78,6 @@ export default async function TradesPage({ searchParams }: { searchParams: Promi
       </table></div>}
       <nav className="journal-pagination" aria-label="Pagination">{page > 1 && <Link href={journalHref(filters, page - 1)}>Previous</Link>}<span>Page {page}</span>{result.hasNext && page < 100000 && <Link href={journalHref(filters, page + 1)}>Next</Link>}</nav>
       </>}
-    </div>
-  </main>;
+
+  </JournalShell>;
 }

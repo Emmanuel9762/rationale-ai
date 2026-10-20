@@ -776,6 +776,40 @@ try {
       await pages[1].goto(base.replace('127.0.0.1','localhost')+'/');
       await pages[1].getByRole('link',{name:'Closed trades awaiting review: 0',exact:true}).click();
       await pages[1].getByText('No trades match these filters.',{exact:false}).waitFor();
+      // The shared frame must remain usable on every route at narrow widths.
+      const visualRoutes = [
+        ['/', 'Dashboard', 'dashboard'], ['/trades', 'Trade history', 'journal'],
+        ['/performance', 'Performance', 'performance'], ['/review-evidence', 'Review evidence', 'evidence'],
+        ['/trades/preview', 'Trade history', 'preview'], ['/trades/map-csv', 'Trade history', 'mapping-empty'],
+        ['/trades/imports', 'Trade history', 'imports'], ['/trades/new', 'Trade history', 'new'],
+        [path, 'Trade history', 'trade'], [path+'/edit', 'Trade history', 'edit'],
+        ['/account', 'Account', 'account'],
+      ];
+      for (const width of [320, 1440]) {
+        await pages[0].setViewportSize({width,height:1000});
+        for (const [route,active,name] of visualRoutes) {
+          await pages[0].goto(base.replace('127.0.0.1','localhost')+route);
+          const nav=pages[0].getByRole('navigation',{name:'Main navigation',exact:true});
+          assert.equal(await nav.locator('[aria-current="page"]').textContent(),active);
+          assert.ok(await pages[0].evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${route} fits ${width}px`);
+          assert.equal(await pages[0].locator('main#main-content').count(),1);
+          if(process.env.JOURNAL_SCREENSHOTS) await pages[0].screenshot({path:`${process.env.JOURNAL_SCREENSHOTS}-${name}-${width}.png`,fullPage:true});
+        }
+        for (const route of ['/sign-in','/sign-up','/forgot-password','/reset-password','/verify-email']) {
+          await pages[0].goto(base.replace('127.0.0.1','localhost')+route);
+          assert.ok(await pages[0].evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${route} fits ${width}px`);
+          assert.ok(await pages[0].getByRole('heading',{level:1}).isVisible());
+          if(process.env.JOURNAL_SCREENSHOTS) await pages[0].screenshot({path:`${process.env.JOURNAL_SCREENSHOTS}-${route.slice(1)}-${width}.png`,fullPage:true});
+        }
+      }
+      await pages[0].goto(base.replace('127.0.0.1','localhost')+'/trades/new');
+      await pages[0].keyboard.press('Tab');
+      assert.equal(await pages[0].locator(':focus').textContent(),'Skip to content');
+      await pages[0].keyboard.press('Enter');
+      assert.equal(await pages[0].locator(':focus').getAttribute('id'),'main-content');
+      await pages[0].getByLabel('Symbol',{exact:true}).focus();
+      assert.equal(await pages[0].locator(':focus').evaluate(el=>getComputedStyle(el).outlineStyle),'solid');
+      console.log('Shared UI browser: active navigation, 16 routes at 320/1440px, skip link and field focus passed.');
       console.log('Two isolated Chromium contexts: signup, trade creation, refresh and cross-user denial passed.');
     } finally {await browser.close();}
   }

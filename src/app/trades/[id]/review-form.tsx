@@ -8,7 +8,7 @@ type Props = {
   reloadHref: string;
   initial: { planAdherence: string | null; reviewWentWell: string | null; reviewImprove: string | null };
 };
-const inputClass = "mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100";
+const inputClass = "journal-field";
 export function ReviewForm({ action, initial, revision, reloadHref }: Props) {
   const [state, formAction, pending] = useActionState<TradeFormState, FormData>(action, { error: "", revision });
   const [values, setValues] = useState<Record<string, string | null>>(state.values ?? initial);
@@ -27,6 +27,6 @@ export function ReviewForm({ action, initial, revision, reloadHref }: Props) {
       </label>
       {[["reviewWentWell", "What went well?"], ["reviewImprove", "What would you improve next time?"]].map(([name, label]) => <div key={name}><label className="block" htmlFor={name}>{label}</label><textarea id={name} name={name} rows={3} maxLength={2000} value={values[name as keyof typeof values] ?? ""} onChange={event => set(name, event.target.value)} className={inputClass}/></div>)}
     </fieldset>
-    <button type="submit" disabled={pending || state.conflict} className="rounded-lg bg-zinc-100 px-4 py-2 text-zinc-950 disabled:opacity-50">{pending ? "Saving…" : "Save review"}</button>
+    <button type="submit" disabled={pending || state.conflict} className="journal-primary">{pending ? "Saving…" : "Save review"}</button>
   </form>;
 }

@@ -1,3 +1,4 @@
+import { JournalShell, JournalHeader } from "@/app/journal-shell";
 import { EntryDatePresets } from "@/app/entry-date-presets";
 import Link from "next/link";
 import { PERFORMANCE_EXPORT_LIMIT } from "@/lib/performance-csv";
@@ -16,14 +17,14 @@ function BreakdownTable({ title, dimension, rows, by, period }: { title: string;
   const label = (group: string | null) => by === "adherence" && isPlanAdherenceGroup(group) ? PLAN_ADHERENCE_LABELS[group] : group;
   return <section className="space-y-3" aria-label={title}>
     <h2 className="text-xl font-semibold">{title}</h2>
-    <div className="overflow-x-auto rounded-xl border border-zinc-800">
+    <div className="overflow-x-auto rounded-xl border border-line" role="region" aria-label={`${title} table`} tabIndex={0}>
       <table className="w-full text-left text-sm">
         <caption className="sr-only">{title}: recorded results for the selected entry dates</caption>
-        <thead className="bg-zinc-900 text-zinc-400"><tr>
+        <thead className="bg-panel text-muted"><tr>
           {[dimension, "Total trades", "Open / incomplete", "Closed without P&L", "Closed with P&L (sample)", "Wins", "Losses", "Break-even", "Win rate", "Recorded P&L", "Average P&L", "Average win", "Average loss", "Profit factor"].map(label => <th key={label} scope="col" className="p-4">{label}</th>)}
         </tr></thead>
-        <tbody>{rows.map(row => <tr key={row.group === null ? "missing" : `group:${row.group}`} className="border-t border-zinc-800">
-          <th scope="row" className="max-w-xs break-words p-4 font-medium"><Link className="underline" href={breakdownJournalHref(by, row.group, period)} aria-label={`View trades for ${by}: ${label(row.group) ?? "Not specified (missing label)"}`}>{label(row.group) ?? <span className="italic text-zinc-400">Not specified</span>}</Link></th>
+        <tbody>{rows.map(row => <tr key={row.group === null ? "missing" : `group:${row.group}`} className="border-t border-line">
+          <th scope="row" className="max-w-xs break-words p-4 font-medium"><Link className="underline" href={breakdownJournalHref(by, row.group, period)} aria-label={`View trades for ${by}: ${label(row.group) ?? "Not specified (missing label)"}`}>{label(row.group) ?? <span className="italic text-muted">Not specified</span>}</Link></th>
           {([['total', 'all trades'], ['open', 'open or incomplete trades'], ['missingPnl', 'closed trades without P&L'], ['measured', 'closed trades with P&L'], ['wins', 'winning trades'], ['losses', 'losing trades'], ['breakeven', 'break-even trades']] as const).map(([sample, description]) => <td key={sample} className={`p-4 tabular-nums ${sample === "measured" ? "font-semibold" : ""}`}>
             <Link className="underline" href={breakdownJournalHref(by, row.group, period, sample)} aria-label={`View ${row[sample]} ${description} for ${by}: ${label(row.group) ?? "Not specified (missing label)"}`}>{row[sample]}</Link>
           </td>)}
@@ -48,23 +49,24 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
     tradeBreakdown(db, user.id, "adherence", period),
     tradeBreakdown(db, user.id, "month", period),
   ]);
-  return <main className="min-h-screen bg-zinc-950 px-6 py-10 text-zinc-100">
-    <div className="mx-auto max-w-6xl space-y-6">
-      <nav className="flex flex-wrap gap-5 text-sm"><Link href="/account">Account</Link><Link href="/">Dashboard</Link><Link href="/trades">Trade history</Link><Link href="/trades/new">Log a trade</Link></nav>
-      <header><h1 className="text-2xl font-semibold">Performance breakdowns</h1><p className="mt-2 text-zinc-400">Your journal · {filtered ? `${period.from ?? "Beginning"} through ${period.to ?? "no end limit"} (entry dates, UTC)` : "All time"} · All accounts</p></header>
-      <form key={`${period.from ?? ""}:${period.to ?? ""}`} action="/performance" method="get" className="flex flex-wrap items-end gap-4 rounded-xl border border-zinc-800 p-5">
+  return <JournalShell active="performance">
+
+      <JournalHeader eyebrow="Understand your results" title="Performance breakdowns"><p>Your journal · {filtered ? `${period.from ?? "Beginning"} through ${period.to ?? "no end limit"} (entry dates, UTC)` : "All time"} · All accounts</p></JournalHeader>
+      <form key={`${period.from ?? ""}:${period.to ?? ""}`} action="/performance" method="get" className="journal-panel flex flex-wrap items-end gap-4">
         {[['from', 'From entry date (UTC)'], ['to', 'Through entry date (UTC)']].map(([name, label]) => <div key={name}>
           <label htmlFor={name} className="block text-sm">{label}</label>
-          <input id={name} name={name} type="date" defaultValue={typeof params[name] === "string" ? params[name] : ""} className="mt-2 rounded-lg border border-zinc-700 bg-zinc-950 p-2"/>
+          <input id={name} name={name} type="date" defaultValue={typeof params[name] === "string" ? params[name] : ""} className="journal-field"/>
         </div>)}
-        <button className="rounded-lg bg-zinc-100 px-4 py-2 text-zinc-950">Apply dates</button>
+        <button className="journal-primary">Apply dates</button>
         <Link className="underline" href="/performance">All time</Link>
         {!errors.length && <Link className="underline" href={journalHref(period)}>View matching trades</Link>}
       </form>
       <EntryDatePresets pathname="/performance" period={errors.length ? {} : period} />
-      {!errors.length && <p className="text-sm text-zinc-400"><a className="underline" href={journalHref(period).replace("/trades", "/performance/export")}>Export performance (CSV)</a> · Up to {PERFORMANCE_EXPORT_LIMIT} group rows across all four breakdowns. Groups overlap across dimensions; do not add their totals together. This summary cannot be imported as trades. Missing metrics are blank; ∞ means no recorded losses. Formula-like labels receive a protective apostrophe.</p>}
+      {!errors.length && <p className="text-sm text-muted"><a className="underline" href={journalHref(period).replace("/trades", "/performance/export")}>Export performance (CSV)</a> · Up to {PERFORMANCE_EXPORT_LIMIT} group rows across all four breakdowns. Groups overlap across dimensions; do not add their totals together. This summary cannot be imported as trades. Missing metrics are blank; ∞ means no recorded losses. Formula-like labels receive a protective apostrophe.</p>}
       {!errors.length && <Link className="inline-block underline" href={journalHref(period).replace("/trades","/review-evidence")}>Review evidence for these dates</Link>}
-      <div className="space-y-2 rounded-xl border border-zinc-800 p-5 text-sm text-zinc-300">
+      <details className="journal-panel text-sm text-body">
+        <summary className="font-medium text-ink">How to read these results</summary>
+        <div className="mt-4 space-y-3">
         <p>Win rate is wins divided by closed trades with recorded P&L. Wins, losses and break-even counts add up to the measured sample. Break-even trades count in the sample but are not wins. A closed trade has both an exit price and exit time.</p>
         <p>Open / incomplete trades and closed trades missing P&L are excluded from performance metrics. Win rate and recorded P&L show a dash when there are no measured results.</p>
         <p>Average P&L is recorded P&L divided by the measured sample, including break-even trades. Average win uses winning trades only; average loss uses losing trades only and shows a positive loss size. A dash means there is no applicable sample. Monetary averages are rounded to two decimal places.</p>
@@ -75,13 +77,14 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
         <p>Select a group or Total trades to inspect all its trades for these entry dates. Select an Open, Closed without P&L, Closed with P&L, Wins, Losses, or Break-even count to inspect that exact subset. Counts reflect current values; later trade edits can change the results.</p>
         <p>Monthly groups use UTC entry dates, even if trades closed later. Selected bounds can make the first or last month partial. Months without entries are omitted; this is not a realized-by-exit-date report. Monthly links stay within the selected period.</p>
         <p>Plan adherence reflects your latest saved self-assessment, including reviews of open trades. Unreviewed trades are separate from reviewed trades without a valid assessment. Later trade edits do not clear a review. These comparisons describe recorded outcomes; they do not establish that adherence caused a result.</p>
-      </div>
-      {errors.length ? <div role="alert" className="rounded-xl border border-red-900 p-5"><p>Check your dates.</p><ul>{errors.map(error => <li key={error}>{error}</li>)}</ul></div> : filtered && bySetup.length === 0 ? <p>No trades match these entry dates. Change the dates or choose All time.</p> : bySetup.length === 0 ? <p className="rounded-xl border border-zinc-800 p-6">No trades yet. <Link className="underline" href="/trades/new">Log a trade</Link> to start building your performance history.</p> : <>
+        </div>
+      </details>
+      {errors.length ? <div role="alert" className="rounded-xl border border-red-900 p-5"><p>Check your dates.</p><ul>{errors.map(error => <li key={error}>{error}</li>)}</ul></div> : filtered && bySetup.length === 0 ? <p>No trades match these entry dates. Change the dates or choose All time.</p> : bySetup.length === 0 ? <p className="rounded-xl border border-line p-6">No trades yet. <Link className="underline" href="/trades/new">Log a trade</Link> to start building your performance history.</p> : <>
         <BreakdownTable title="By entry month (UTC)" dimension="Entry month (UTC)" rows={byMonth} by="month" period={period}/>
         <BreakdownTable title="By setup" dimension="Setup" rows={bySetup} by="setup" period={period}/>
         <BreakdownTable title="By symbol" dimension="Symbol" rows={bySymbol} by="symbol" period={period}/>
         <BreakdownTable title="By plan adherence" dimension="Plan adherence" rows={byAdherence} by="adherence" period={period}/>
       </>}
-    </div>
-  </main>;
+
+  </JournalShell>;
 }

@@ -43,20 +43,20 @@ export default function CsvPreviewForm() {
     });
   }
   return <div className="space-y-6">
-    <section aria-label="Sample CSV files" className="space-y-3 rounded-xl border border-zinc-800 p-5 text-sm text-zinc-300">
-      <h2 className="font-semibold text-zinc-100">Test with synthetic trades</h2>
+    <section aria-label="Sample CSV files" className="space-y-3 rounded-xl border border-line p-5 text-sm text-body">
+      <h2 className="font-semibold text-ink">Test with synthetic trades</h2>
       <p><a className="underline" href="/samples/rationaleai-import-ready.csv" download>Download import-ready CSV</a> — 30 valid records, no errors and 2 intentional repeats. Includes 5 open trades, 4 closed without P&amp;L and 21 closed with P&amp;L. Use a test account; confirming saves every copy after repeat acknowledgement.</p>
       <p><a className="underline" href="/samples/rationaleai-mock-trades.csv" download>Download mock trade CSV</a> — validation sample: 36 records, 30 valid, 6 deliberately invalid and 2 repeated. Records 32–37 test quantity, closing fields, dates, review choice and decimal precision. This file cannot be confirmed unchanged.</p>
       <p>The import-ready file contains the same valid records as the validation sample, in the same order. If you already imported that valid subset unchanged, confirming it returns the existing receipt. Preview alone saves nothing.</p>
     </section>
-    <form onSubmit={preview} onReset={clear} className="space-y-4 rounded-xl border border-zinc-800 p-5">
-      <label className="block">Trade CSV<input className="mt-2 block w-full rounded border border-zinc-700 p-3" type="file" disabled={isImporting} name="csv" accept=".csv,text/csv" required onChange={clear} aria-describedby="csv-limits" /></label>
-      <p id="csv-limits" className="text-sm text-zinc-400">UTF-8, comma-separated, up to 256 KiB and {CSV_MAX_ROWS} trades. Preview reads the file in this browser. Only confirming an import sends its contents to the server. JavaScript is required.</p>
-      <div className="flex gap-5"><button disabled={pending || isImporting} className="rounded bg-zinc-100 px-4 py-2 text-zinc-950 disabled:opacity-50">{pending ? "Reading CSV…" : "Preview CSV"}</button><button type="reset" disabled={isImporting} className="underline">Clear preview</button></div>
+    <form onSubmit={preview} onReset={clear} className="space-y-4 rounded-xl border border-line p-5">
+      <label className="block">Trade CSV<input className="journal-field" type="file" disabled={isImporting} name="csv" accept=".csv,text/csv" required onChange={clear} aria-describedby="csv-limits" /></label>
+      <p id="csv-limits" className="text-sm text-muted">UTF-8, comma-separated, up to 256 KiB and {CSV_MAX_ROWS} trades. Preview reads the file in this browser. Only confirming an import sends its contents to the server. JavaScript is required.</p>
+      <div className="flex gap-5"><button disabled={pending || isImporting} className="journal-primary">{pending ? "Reading CSV…" : "Preview CSV"}</button><button type="reset" disabled={isImporting} className="underline">Clear preview</button></div>
     </form>
-    <details className="rounded-xl border border-zinc-800 p-5 text-sm">
+    <details className="rounded-xl border border-line p-5 text-sm">
       <summary className="cursor-pointer font-medium">CSV format and limits</summary>
-      <div className="mt-4 space-y-3 text-zinc-300">
+      <div className="mt-4 space-y-3 text-body">
         <p>Required headers: <code>{CSV_REQUIRED_COLUMNS.join(", ")}</code>.</p>
         <p>Optional headers: <code>{CSV_OPTIONAL_COLUMNS.join(", ")}</code>.</p>
         <p>Use LONG or SHORT and decimal numbers without currency symbols or thousands separators. Timestamps must be UTC, for example 2026-10-01T09:30:00Z or 2026-10-01T09:30:00.123Z. Seconds and milliseconds are preserved.</p>
@@ -69,26 +69,26 @@ export default function CsvPreviewForm() {
     {error && <p role="alert" className="rounded-xl border border-red-900 p-4 text-red-300">{error}</p>}
     {result && <section className="space-y-4" aria-label="CSV results">
       <p role="status">{result.total} records: {result.rows.length} valid, {result.errors.length} invalid, {result.rows.filter(row => row.duplicateOf !== undefined).length} repeated. {importState.receipt ? "Batch confirmed." : importState.error ? "Import not confirmed; retry unchanged." : "No trades saved."}</p>
-      <p className="text-sm text-zinc-400">Valid records include {result.rows.filter(row => !row.trade.exitTime).length} open trades, {result.rows.filter(row => row.trade.exitTime && row.trade.pnl === null).length} closed without P&amp;L, and {result.rows.filter(row => row.trade.pnl !== null).length} closed with P&amp;L. Counts include repeats.</p>
-      {result.ignoredColumns.length > 0 && <p className="text-sm text-zinc-400">Ignored metadata: {result.ignoredColumns.join(", ")}.</p>}
-      {result.errors.length === 0 && !importState.receipt && <form onSubmit={save} key={source} className="space-y-4 rounded-xl border border-zinc-700 p-5" aria-label="Confirm CSV import">
+      <p className="text-sm text-muted">Valid records include {result.rows.filter(row => !row.trade.exitTime).length} open trades, {result.rows.filter(row => row.trade.exitTime && row.trade.pnl === null).length} closed without P&amp;L, and {result.rows.filter(row => row.trade.pnl !== null).length} closed with P&amp;L. Counts include repeats.</p>
+      {result.ignoredColumns.length > 0 && <p className="text-sm text-muted">Ignored metadata: {result.ignoredColumns.join(", ")}.</p>}
+      {result.errors.length === 0 && !importState.receipt && <form onSubmit={save} key={source} className="space-y-4 rounded-xl border border-input p-5" aria-label="Confirm CSV import">
         <h2 className="font-semibold">Save this batch</h2>
-        <p className="text-sm text-zinc-300">Save all {result.rows.length} records to your default account. Recorded amounts must use that account’s currency; no conversion is performed. Existing trades and account balances stay unchanged.</p>
-        <p className="text-sm text-zinc-400">The same validated batch in the same order returns its original receipt, including after reload or later trade edits. Changing rows or their order creates a different batch. Overlaps with other files or manual trades are not detected.</p>
+        <p className="text-sm text-body">Save all {result.rows.length} records to your default account. Recorded amounts must use that account’s currency; no conversion is performed. Existing trades and account balances stay unchanged.</p>
+        <p className="text-sm text-muted">The same validated batch in the same order returns its original receipt, including after reload or later trade edits. Changing rows or their order creates a different batch. Overlaps with other files or manual trades are not detected.</p>
         <label className="flex gap-3"><input type="checkbox" name="confirmed" value="yes" required disabled={isImporting} />I confirm these trades should be saved to my journal.</label>
         {result.rows.some(row => row.duplicateOf !== undefined) && <label className="flex gap-3"><input type="checkbox" name="allowRepeated" value="yes" required disabled={isImporting} />Repeated records are intentional; save every copy.</label>}
-        <button disabled={isImporting} className="rounded bg-zinc-100 px-4 py-2 text-zinc-950 disabled:opacity-50">{isImporting ? "Importing…" : "Confirm import"}</button>
+        <button disabled={isImporting} className="journal-primary">{isImporting ? "Importing…" : "Confirm import"}</button>
       </form>}
       {importState.error && <p role="alert" className="rounded-xl border border-red-900 p-4 text-red-300">{importState.error}</p>}
-      {importState.receipt && <div role="status" className="rounded-xl border border-zinc-700 p-5"><p>Batch confirmed: {importState.receipt.count} {importState.receipt.count === 1 ? "trade" : "trades"}. Replaying this batch will not add it again.</p><p className="mt-2 break-all text-sm text-zinc-400">Receipt: {importState.receipt.id}</p><Link href="/trades" className="mt-3 inline-block underline">View trade history</Link><Link href={journalHref({import:importState.receipt.id})} className="ml-5 underline">View batch trades</Link><Link href="/trades/imports" className="ml-5 underline">Import history</Link></div>}
+      {importState.receipt && <div role="status" className="rounded-xl border border-input p-5"><p>Batch confirmed: {importState.receipt.count} {importState.receipt.count === 1 ? "trade" : "trades"}. Replaying this batch will not add it again.</p><p className="mt-2 break-all text-sm text-muted">Receipt: {importState.receipt.id}</p><Link href="/trades" className="mt-3 inline-block underline">View trade history</Link><Link href={journalHref({import:importState.receipt.id})} className="ml-5 underline">View batch trades</Link><Link href="/trades/imports" className="ml-5 underline">Import history</Link></div>}
       {result.errors.length > 0 && <div role="alert" className="rounded-xl border border-red-900 p-4"><h2 className="font-semibold">Records to fix</h2><ul className="mt-2 list-inside list-disc">{result.errors.map(item => <li key={item.record}>Record {item.record}: {item.message}</li>)}</ul></div>}
-      {result.rows.length > 0 && <div className="overflow-x-auto rounded-xl border border-zinc-800"><table className="w-full text-left text-sm">
+      {result.rows.length > 0 && <div className="overflow-x-auto rounded-xl border border-line"><table className="w-full text-left text-sm">
         <caption className="p-4 text-left">Valid records — expand Details for prices, notes and reflections.</caption>
-        <thead className="bg-zinc-900"><tr>{["Record", "Symbol", "Direction", "Entry (UTC)", "Status", "Recorded P&L", "Plan adherence", "Details"].map(label => <th key={label} scope="col" className="p-3">{label}</th>)}</tr></thead>
-        <tbody>{result.rows.map(({ record, trade, review, duplicateOf }) => <tr key={record} className="border-t border-zinc-800 align-top">
+        <thead className="bg-panel"><tr>{["Record", "Symbol", "Direction", "Entry (UTC)", "Status", "Recorded P&L", "Plan adherence", "Details"].map(label => <th key={label} scope="col" className="p-3">{label}</th>)}</tr></thead>
+        <tbody>{result.rows.map(({ record, trade, review, duplicateOf }) => <tr key={record} className="border-t border-line align-top">
           <th scope="row" className="p-3">{record}{duplicateOf !== undefined && <span className="block font-normal text-amber-300">Repeats {duplicateOf}</span>}</th>
           <td className="p-3">{trade.symbol}</td><td className="p-3">{trade.direction}</td><td className="whitespace-nowrap p-3">{trade.entryTime.toISOString()}</td><td className="p-3">{trade.exitTime ? "Closed" : "Open"}</td><td className="p-3">{trade.pnl ?? "Not recorded"}</td><td className="p-3">{review ? PLAN_ADHERENCE_LABELS[review.planAdherence] : "Unreviewed"}</td>
-          <td className="min-w-64 p-3"><details><summary className="cursor-pointer">Details for record {record}</summary><dl className="mt-2 space-y-2 whitespace-pre-wrap break-words">{Object.entries({ "Entry price": trade.entryPrice, "Quantity": trade.quantity, "Exit price": trade.exitPrice, "Exit (UTC)": trade.exitTime?.toISOString(), "Setup": trade.setup, "Rationale": trade.rationale, "Notes": trade.notes, "Went well": review?.reviewWentWell, "Improve": review?.reviewImprove }).map(([name,value]) => <div key={name}><dt className="text-zinc-400">{name}</dt><dd>{value ?? "Not supplied"}</dd></div>)}</dl></details></td>
+          <td className="min-w-64 p-3"><details><summary className="cursor-pointer">Details for record {record}</summary><dl className="mt-2 space-y-2 whitespace-pre-wrap break-words">{Object.entries({ "Entry price": trade.entryPrice, "Quantity": trade.quantity, "Exit price": trade.exitPrice, "Exit (UTC)": trade.exitTime?.toISOString(), "Setup": trade.setup, "Rationale": trade.rationale, "Notes": trade.notes, "Went well": review?.reviewWentWell, "Improve": review?.reviewImprove }).map(([name,value]) => <div key={name}><dt className="text-muted">{name}</dt><dd>{value ?? "Not supplied"}</dd></div>)}</dl></details></td>
         </tr>)}</tbody>
       </table></div>}
     </section>}
