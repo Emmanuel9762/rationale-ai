@@ -1327,11 +1327,10 @@ UTF-8 responses, stale replies after a trade edit, escaped text and no trade wri
 CI must pass the added Chromium download/paste/citation/clear/recovery/mobile checks,
 and its manual-review screenshot must be inspected before PR readiness.
 
-The first Chromium run exposed React's automatic post-action form reset invoking
-the same handler as the explicit Clear button and discarding the checked draft.
-The Clear button now remounts the editor explicitly; automatic resets are prevented.
-The browser round-trip check protects this behavior. Reverification is required.
-The follow-up browser run passed draft retention, content escaping, citations and
-explicit clearing, then exposed the textarea's wrapped label including its restored
-text after a validation error. The label now sits outside the textarea so its name
-stays stable across success/error/clear states; the recovery check covers this.
+Chromium verification exposed automatic post-action resets and old action errors
+being restored on editor remount. Clear now resets text and hides prior feedback
+directly; it does not rely on remounting the action state. Automatic form resets are
+prevented so a successful checked draft remains visible. The textarea uses an
+external label to keep its accessible name stable when server validation restores
+its text. The browser round trip covers success, error recovery and explicit clear;
+all checks must pass before PR readiness.

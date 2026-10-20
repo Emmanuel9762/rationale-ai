@@ -14,14 +14,11 @@ const metricLabels = {
 type Period = { from?: string; to?: string };
 
 export default function ManualReviewForm({ period }: { period: Period }) {
-  const [generation, setGeneration] = useState(0);
-  return <ReviewEditor key={generation} period={period} clear={() => setGeneration(value => value + 1)}/>;
-}
-
-function ReviewEditor({ period, clear }: { period: Period; clear: () => void }) {
   const [state, action, pending] = useActionState<ManualReviewState, FormData>(checkManualReviewAction, { error: "" });
   const [raw, setRaw] = useState(state.raw ?? "");
-  const view = !pending && state.raw === raw ? state.view : undefined;
+  const [showFeedback, setShowFeedback] = useState(true);
+  const view = showFeedback && !pending && state.raw === raw ? state.view : undefined;
+  function clear() { setRaw(""); setShowFeedback(false); }
   const draft = view?.draft;
   const citations = (item: NonNullable<typeof draft>["observations"][number]) => <div className="mt-3 flex flex-wrap gap-2" aria-label="Evidence references">
     {item.tradeIds.map(id => {
@@ -32,16 +29,16 @@ function ReviewEditor({ period, clear }: { period: Period; clear: () => void }) 
   </div>;
 
   return <div className="space-y-5">
-    <form action={action} onReset={event => event.preventDefault()} className="space-y-4" aria-label="Check manual review">
+    <form action={action} onSubmit={() => setShowFeedback(true)} onReset={event => event.preventDefault()} className="space-y-4" aria-label="Check manual review">
       {period.from && <input type="hidden" name="from" value={period.from}/>}
       {period.to && <input type="hidden" name="to" value={period.to}/>}
       <div><label className="block text-sm" htmlFor="manual-response">Model response JSON</label>
-        <textarea id="manual-response" name="response" required rows={8} maxLength={16384} disabled={pending} value={raw} onChange={event => setRaw(event.target.value)} className="journal-field font-mono" aria-describedby="manual-response-help"/>
+        <textarea id="manual-response" name="response" required rows={8} maxLength={16384} disabled={pending} value={raw} onChange={event => { setRaw(event.target.value); setShowFeedback(false); }} className="journal-field font-mono" aria-describedby="manual-response-help"/>
       </div>
       <p id="manual-response-help" className="text-sm text-muted">Paste only the JSON object, up to 16 KiB. The response must match a fresh download for these dates. Edits to trades or reviews, and changes to included trades, invalidate an earlier packet.</p>
       <div className="flex flex-wrap gap-4"><button className="journal-primary" disabled={pending}>{pending ? "Checking response…" : "Check response"}</button><button className="journal-secondary" type="button" onClick={clear} disabled={pending}>Clear response</button></div>
       {pending && <p role="status">Checking against your current journal…</p>}
-      {!pending && state.error && <p role="alert">{state.error} Download a fresh packet if your journal or dates changed.</p>}
+      {showFeedback && !pending && state.error && <p role="alert">{state.error} Download a fresh packet if your journal or dates changed.</p>}
     </form>
     {draft && view && <section aria-label="Checked review draft" className="space-y-5 border-t border-line pt-5">
       <header className="space-y-2"><p className="journal-eyebrow">Manual review · unsaved draft</p><h3 className="text-2xl font-semibold">Review draft</h3><p role="status" className="text-sm text-muted">Structure and references checked. This does not verify that the claims are true. Nothing has been saved to your journal.</p></header>

@@ -24,8 +24,8 @@ save an AI draft or change a trade/review. A live provider remains unconfigured.
    trade citations open the original records with the date-filtered return link.
    Metric citations jump to figures copied from the journal, followed by questions,
    one process experiment and mandatory limitations.
-7. **Clear response** discards the text and draft. The draft appears only while the
-   text matches the checked response. Reloading or applying different dates discards
+7. **Clear response** discards the visible text, draft and error. Editing the text
+   hides prior feedback until the next check. Reloading or applying different dates discards
    the form state. Nothing is persisted, including the draft and its validation time.
 
 If the model returns prose or fenced JSON, request the exact object rather than
