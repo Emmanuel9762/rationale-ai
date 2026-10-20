@@ -1331,3 +1331,7 @@ The first Chromium run exposed React's automatic post-action form reset invoking
 the same handler as the explicit Clear button and discarding the checked draft.
 The Clear button now remounts the editor explicitly; automatic resets are prevented.
 The browser round-trip check protects this behavior. Reverification is required.
+The follow-up browser run passed draft retention, content escaping, citations and
+explicit clearing, then exposed the textarea's wrapped label including its restored
+text after a validation error. The label now sits outside the textarea so its name
+stays stable across success/error/clear states; the recovery check covers this.
