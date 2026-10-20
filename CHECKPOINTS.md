@@ -1295,3 +1295,42 @@ Chromium download was unavailable here; the CI browser suite adds a 16-route
 320px/1440px overflow/navigation sweep and keyboard checks. CI retains synthetic
 fixture screenshots as journal-ui. Browser verification and visual inspection
 must pass before this checkpoint's PR is marked ready.
+
+## CP56 — manual evidence-to-review round trip
+
+Finishes CP55's verification: all CI/browser gates passed at 27d7fb3 in run
+39446578743, desktop/mobile screenshots were inspected, and PR #39 is ready.
+
+Adds an optional manual-review disclosure on Review evidence. A private/no-store
+JSON attachment contains the exact bounded, owner/date-scoped snapshot, instructions,
+content fingerprint and limitations. The complete readable packet is capped at
+512 KiB; empty evidence and oversize output fail without a partial download.
+
+A session-authenticated action checks a pasted response (up to 16 KiB) against
+fresh server-owned evidence, ignoring claimed owner IDs and previous action state.
+Stale snapshots and foreign citations fail closed. The unsaved draft separates
+observations from tentative hypotheses, links to source trades and exact supplied
+metrics, and retains questions, one process experiment and application limitations.
+All model text is escaped; only application-built evidence citations navigate.
+
+Clear/reload/date changes discard the draft; it is shown only while the pasted text
+matches the checked response. Its check time is explicit, because later journal edits
+cannot update an already displayed draft. No provider request, API key, database
+write/migration or dependency change. MANUAL_REVIEW.md covers user acceptance and
+the external model step; a live adapter still needs a model/provider and spend limit.
+
+Verified locally: 110 tests, lint, typecheck, production build, 13 protected-route
+checks and full HTTP workflows passed with synthetic fixtures. Four new unit tests
+cover exact packets, bounds, caveats, source links and stale/foreign replies. HTTP
+checks include two-owner isolation, forged IDs, invalid dates, malformed/oversized
+UTF-8 responses, stale replies after a trade edit, escaped text and no trade writes.
+CI must pass the added Chromium download/paste/citation/clear/recovery/mobile checks,
+and its manual-review screenshot must be inspected before PR readiness.
+
+Chromium verification exposed automatic post-action resets and the textarea's
+wrapped label including restored response text. Automatic resets are prevented so
+a checked draft remains visible; Clear resets text and hides prior feedback directly.
+An external label keeps its name stable across validation responses. Error assertions
+are scoped to the manual form, excluding Next's separate accessibility announcer.
+The browser round trip covers success, error recovery and explicit clear; all checks
+must pass before PR readiness.

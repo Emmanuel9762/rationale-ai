@@ -145,8 +145,50 @@ try {
   }
   assert.equal((await database.query('select count(*)::int n from trades')).rows[0].n,evidenceBefore);
   console.log('Review evidence HTTP: owner isolation, date validation, empty state and no writes passed.');
+  const evidencePath='/review-evidence?from=2026-01-01&to=2026-01-01';
+  const packetPath='/review-evidence/export?from=2026-01-01&to=2026-01-01';
+  const beforeManual=(await database.query('select * from trades order by id')).rows;
+  let ownPacket;
+  for(const [client,own,other] of [[a,'A private rationale','B private rationale'],[b,'B private rationale','A private rationale']]) {
+    const r=await client.request(packetPath+'&userId='+aTrade.account_id);
+    assert.equal(r.status,200);assert.match(r.headers.get('cache-control'),/private, no-store/);
+    assert.match(r.headers.get('content-type'),/application\/json/);assert.match(r.headers.get('content-disposition'),/attachment/);
+    assert.equal(r.headers.get('x-content-type-options'),'nosniff');
+    const text=await r.text();assert.ok(text.includes(own));assert.ok(!text.includes(other));
+    const packet=JSON.parse(text);assert.equal(packet.evidence.entries.length,1);
+    assert.equal(packet.evidence.period.from,'2026-01-01');
+    assert.ok(!Object.hasOwn(packet.evidence.entries[0],'accountId'));
+    if(client===a)ownPacket=packet;
+  }
+  for(const query of ['from=bad','from=2026-02-01&to=2026-01-01','from=2026-01-01&from=2026-01-02']) {
+    const r=await a.request('/review-evidence/export?'+query);assert.equal(r.status,400);
+    assert.ok(!(await r.text()).includes('A private rationale'));
+  }
+  assert.equal((await a.request('/review-evidence/export?from=2099-01-01')).status,422);
+  const manualReply={version:1,evidenceId:ownPacket.evidenceId,
+    observations:[{text:'<script>MODEL_DRAFT_ATTACK</script> https://evil.test',tradeIds:[aTrade.id],metricKeys:['included']}],
+    hypotheses:[],questions:['What defined this setup?'],experiment:{action:'Record the setup before entering.',check:'Compare it with the later reflection.'}};
+  const manualResponse=JSON.stringify(manualReply);
+  const manualHtml=await(await a.submit(evidencePath,{response:manualResponse,userId:bTrade.account_id})).text();
+  assert.match(manualHtml,/Structure and references checked/);assert.match(manualHtml,/Unsaved|unsaved draft/);
+  assert.ok(manualHtml.includes('&lt;script&gt;MODEL_DRAFT_ATTACK&lt;/script&gt;'));
+  assert.ok(!manualHtml.includes('<script>MODEL_DRAFT_ATTACK</script>'));
+  const claimedOwner=(await database.query('select user_id from trading_accounts where id=$1',[aTrade.account_id])).rows[0].user_id;
+  const wrongOwnerHtml=await(await b.submit(evidencePath,{response:manualResponse,userId:claimedOwner})).text();
+  assert.match(wrongOwnerHtml,/does not match this evidence snapshot/);assert.ok(!wrongOwnerHtml.includes('Structure and references checked'));
+  const foreignReply=JSON.stringify({...manualReply,observations:[{...manualReply.observations[0],tradeIds:[bTrade.id]}]});
+  assert.match(await(await a.submit(evidencePath,{response:foreignReply})).text(),/Unknown or repeated trade references/);
+  for(const response of ['not json','x'.repeat(16385),'😀'.repeat(5000)]) {
+    const html=await(await a.submit(evidencePath,{response})).text();
+    assert.ok(!html.includes('Structure and references checked'));assert.match(html,/valid JSON|at most 16 KiB/);
+  }
+  assert.match(await(await a.submit(evidencePath,{response:manualResponse,from:'bad'})).text(),/Check the entry dates/);
+  assert.deepEqual((await database.query('select * from trades order by id')).rows,beforeManual);
+  console.log('Manual review HTTP: private owner/date-scoped packet, empty/invalid/oversized input, forged identity, foreign references, escaped text and no writes passed.');
   const updated=await a.submit(editPath,{...input,notes:'Owner correction'},editHtml);assert.equal(updated.status,303);
   assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,'Owner correction');
+  const staleManual=await(await a.submit(evidencePath,{response:manualResponse})).text();
+  assert.match(staleManual,/does not match this evidence snapshot/);assert.ok(!staleManual.includes('Structure and references checked'));
   const revisionFrom=html=>html.match(/name="revision"[^>]*value="([^"]+)"/)[1];
   const staleEdit=await a.submit(editPath,{...input,notes:'MY_STALE_DRAFT'},editHtml);
   const staleEditHtml=await staleEdit.text();assert.match(staleEditHtml,/changed after you opened/);assert.match(staleEditHtml,/MY_STALE_DRAFT/);
@@ -416,6 +458,53 @@ try {
       assert.equal(new URL(pages[0].url()).searchParams.get('from'),'2026-01-01');
       await pages[0].getByText('Read evidence',{exact:true}).click();
       await pages[0].getByText('A private rationale',{exact:true}).waitFor();
+      const manualBefore=(await database.query('select * from trades where id=$1',[path.split('/').pop()])).rows;
+      await pages[0].getByText('Review this evidence with an external model',{exact:true}).click();
+      const packetDownloadEvent=pages[0].waitForEvent('download');
+      await pages[0].getByRole('link',{name:'Download review packet (JSON)',exact:true}).click();
+      const packetDownload=await packetDownloadEvent;
+      assert.equal(packetDownload.suggestedFilename(),'rationale-review-packet.json');
+      const packet=JSON.parse(await readFile(await packetDownload.path(),'utf8'));
+      assert.equal(packet.evidence.period.from,'2026-01-01');
+      assert.equal(packet.evidence.entries.length,1);
+      const unsafeText='<img src=x onerror="window.manualReviewExecuted=true"> https://evil.test';
+      const browserReply=JSON.stringify({version:1,evidenceId:packet.evidenceId,
+        observations:[{text:unsafeText,tradeIds:[packet.evidence.entries[0].id],metricKeys:['included']}],
+        hypotheses:[{text:'The entry conditions may need more detail.',tradeIds:[],metricKeys:['missingSetup']}],
+        questions:['What defined this setup?'],experiment:{action:'Write the setup before entry.',check:'Compare it with the later reflection.'}});
+      await pages[0].getByLabel('Model response JSON',{exact:true}).fill(browserReply);
+      await pages[0].getByRole('button',{name:'Check response',exact:true}).click();
+      const draftView=pages[0].getByRole('region',{name:'Checked review draft',exact:true});
+      try { await draftView.getByText('Review draft',{exact:true}).waitFor(); }
+      catch(error) {
+        if(process.env.JOURNAL_SCREENSHOTS) await pages[0].screenshot({path:process.env.JOURNAL_SCREENSHOTS+'-manual-failure.png',fullPage:true});
+        console.log('Manual review check state:',await pages[0].getByRole('alert').allTextContents());
+        throw error;
+      }
+      assert.equal(await draftView.locator('img').count(),0);
+      assert.equal(await draftView.locator('a[href="https://evil.test"]').count(),0);
+      assert.equal(await pages[0].evaluate(()=>window.manualReviewExecuted),undefined);
+      assert.equal(await draftView.getByText(unsafeText,{exact:true}).textContent(),unsafeText);
+      assert.ok((await draftView.getByRole('link',{name:'ONLY_A · 2026-01-01',exact:true}).getAttribute('href')).includes('returnTo='));
+      assert.ok(await draftView.getByRole('region',{name:'Tentative hypotheses',exact:true}).isVisible());
+      await draftView.getByRole('link',{name:'Included trades',exact:true}).click();
+      assert.equal(new URL(pages[0].url()).hash,'#draft-metric-included');
+      await pages[0].setViewportSize({width:390,height:844});
+      assert.ok(await pages[0].evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+      if(process.env.JOURNAL_SCREENSHOTS) await pages[0].screenshot({path:process.env.JOURNAL_SCREENSHOTS+'-manual-review.png',fullPage:true});
+      await pages[0].getByRole('button',{name:'Clear response',exact:true}).click();
+      assert.equal(await pages[0].getByLabel('Model response JSON',{exact:true}).inputValue(),'');
+      assert.equal(await pages[0].getByRole('region',{name:'Checked review draft',exact:true}).count(),0);
+      await pages[0].getByLabel('Model response JSON',{exact:true}).fill('not json');
+      await pages[0].getByRole('button',{name:'Check response',exact:true}).click();
+      await pages[0].getByRole('alert').filter({hasText:'not valid JSON'}).waitFor();
+      assert.equal(await pages[0].getByLabel('Model response JSON',{exact:true}).inputValue(),'not json');
+      await pages[0].getByRole('button',{name:'Clear response',exact:true}).click();
+      const manualErrors=pages[0].getByRole('form',{name:'Check manual review',exact:true}).getByRole('alert');
+      await manualErrors.waitFor({state:'detached'});
+      assert.equal(await manualErrors.count(),0);
+      assert.deepEqual((await database.query('select * from trades where id=$1',[path.split('/').pop()])).rows,manualBefore);
+      console.log('Manual review browser: packet download, pasted response, escaped HTML/URLs, cited sources/metrics, mobile width, clear/recovery and no writes passed.');
       await pages[0].setViewportSize({width:390,height:844});
       assert.ok(await pages[0].evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
       if(process.env.JOURNAL_SCREENSHOTS) await pages[0].screenshot({path:process.env.JOURNAL_SCREENSHOTS+'-evidence.png',fullPage:true});

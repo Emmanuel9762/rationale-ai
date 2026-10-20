@@ -100,7 +100,13 @@ export function validateReviewResponse(raw: string, evidence: Evidence) {
   const hypotheses = list(root.hypotheses,0,3,"hypotheses").map(cited);
   const questions = list(root.questions,1,5,"questions").map(value=>text(value,300,"question"));
   const experiment = object(root.experiment,["action","check"],"experiment");
-  // These facts and caveats come from application code, not model-authored values.
+  return {version:1, evidenceId, observations, hypotheses, questions,
+    experiment:{action:text(experiment.action,600,"experiment action"),check:text(experiment.check,600,"experiment check")},
+    metrics:{...evidence.coverage,recordedPnl:evidence.recordedPnl}, limitations:reviewLimitations(evidence)};
+}
+
+// Shared by downloaded evidence packets and validated draft displays.
+export function reviewLimitations(evidence: Evidence) {
   const limitations = ["Draft interpretation: reference checks do not prove the claims are true.",
     "Recorded amounts assume a common account currency; no currency conversion.",
     "Notes can be retrospective; structured pre-trade risk rules are not captured."];
@@ -110,7 +116,5 @@ export function validateReviewResponse(raw: string, evidence: Evidence) {
   if (evidence.coverage.missingPnl) limitations.push("Some closed trades lack P&L and are excluded from recorded totals.");
   if (evidence.coverage.missingRationale) limitations.push("Some trades lack rationale; intent cannot be inferred from outcomes.");
   if (evidence.coverage.missingReviewText) limitations.push("Some trades have no review notes; review context is incomplete.");
-  return {version:1, evidenceId, observations, hypotheses, questions,
-    experiment:{action:text(experiment.action,600,"experiment action"),check:text(experiment.check,600,"experiment check")},
-    metrics:{...evidence.coverage,recordedPnl:evidence.recordedPnl}, limitations};
+  return limitations;
 }

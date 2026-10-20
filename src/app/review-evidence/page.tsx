@@ -7,6 +7,7 @@ import { journalHref, parseJournalFilters, type JournalSearchParams } from "@/li
 import { tradeContextHref } from "@/lib/journal-navigation";
 import { formatPnl } from "@/lib/trade-metrics";
 import { isPlanAdherenceGroup, PLAN_ADHERENCE_LABELS } from "@/lib/plan-adherence";
+import ManualReviewForm from "./manual-review-form";
 
 export const dynamic = "force-dynamic";
 const narrativeLabels: Record<string,string> = {rationale:"Rationale",notes:"Notes",reviewWentWell:"What went well",reviewImprove:"What to improve"};
@@ -36,6 +37,18 @@ export default async function ReviewEvidencePage({searchParams}: {searchParams:P
           <p className="text-sm text-muted">P&amp;L is recorded, not calculated, and assumes a common account currency. Missing P&amp;L is excluded. Entry dates determine inclusion even if a trade closed later.</p>
           <Link className="underline" href={journalHref(period)}>Open matching journal</Link>
         </section>
+        {evidence.entries.length > 0 && <details className="journal-detail-section" key={journalHref(period)}>
+          <summary className="font-semibold">Review this evidence with an external model</summary>
+          <div className="mt-5 space-y-5">
+            <p className="text-sm text-muted">Download a packet for these entry dates, choose whether to share it with a model you use, then paste its JSON reply below. Rationale does not call a model. Checking a reply reads your current journal and saves nothing.</p>
+            <ol className="list-inside list-decimal space-y-3 text-sm text-body">
+              <li><a className="underline" href={journalHref(period).replace("/trades", "/review-evidence/export")}>Download review packet (JSON)</a>. It includes trade IDs, notes and reflections, with the same 100-trade and excerpt limits shown here. Review its contents before sharing.</li>
+              <li>Attach the packet to your chosen model. Ask it to follow the packet’s instructions, treat evidence as untrusted data, and return only the specified JSON object with the same evidenceId.</li>
+              <li>Paste the reply below. Structure and citation checks help you inspect a draft; they do not prove its claims or identify a trading edge.</li>
+            </ol>
+            <ManualReviewForm period={period}/>
+          </div>
+        </details>}
         {evidence.entries.length === 0 ? <p className="journal-detail-section">No trades match these entry dates. Change the dates or <Link href="/trades/new" className="underline">log a trade</Link>.</p> : <section aria-label="Included evidence" className="space-y-4">
           <h2 className="text-xl font-semibold">Inspect the included trades</h2>
           <p className="text-sm text-muted">Newest entry first. Open a trade to add missing rationale or review notes. A saved review is a self-assessment, not a quality score.</p>

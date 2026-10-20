@@ -1,8 +1,10 @@
 # AI review response boundary — CP53
 
-CP53 adds server-side preparation and validation functions, not a live AI feature.
-There is no model request, provider dependency, new endpoint, UI change, storage,
-migration or charge. CP52's Review evidence screen remains the way to inspect input.
+CP53 added server-side preparation and validation functions. CP54 added a disabled
+internal runner; CP56 adds an optional manual packet/reply workflow, documented in
+MANUAL_REVIEW.md. No live provider is configured and Rationale makes no model call.
+Review evidence remains the way to inspect input. The manual flow validates a pasted
+reply against a freshly loaded, server-owned snapshot and displays an unsaved draft.
 
 ## Request boundary
 
@@ -114,9 +116,10 @@ The injected provider receives separate instructions/input, an AbortSignal and t
 set provider token limits, implement cancellation and normalize provider behavior;
 post-response validation alone does not bound upstream cost or buffering.
 
-Future route/action integration must authenticate, enforce a durable spending/request
-budget and get explicit invocation before calling the runner. No route/action or live
-UI is connected yet. A provider/model and spending ceiling remain decisions.
+Future live route/action integration must authenticate, enforce a durable spending/request
+budget and get explicit invocation before calling the runner. The runner has no live
+route or model UI connected. CP56's manual flow calls the validator directly and does
+not invoke this runner. A provider/model and spending ceiling remain decisions.
 
 Acceptance: `node --import tsx --test tests/review-runner.test.ts` uses simulated
 providers only. It covers successful validation, gating, owner/date forwarding,
