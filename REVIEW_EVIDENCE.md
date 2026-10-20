@@ -41,6 +41,14 @@ submission metadata; trade IDs/revisions are retained for evidence traceability.
 6. If your period contains over 100 trades, expect the partial-snapshot notice.
    Counts and P&L are for those newest 100 only, not the whole period.
 
+## Manual review (CP56)
+
+Expand **Review this evidence with an external model** to download a private JSON
+packet, then paste a model's JSON reply for snapshot/reference validation and an
+escaped, cited draft display. Sharing the packet is your choice outside Rationale;
+the app makes no model call or journal write. [MANUAL_REVIEW.md](MANUAL_REVIEW.md)
+provides the steps and limitations. AI_REVIEW_CONTRACT.md defines the response.
+
 ## What comes next
 
 This establishes an inspectable input for a future on-demand AI review. It is not
