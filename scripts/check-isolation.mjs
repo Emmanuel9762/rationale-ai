@@ -500,6 +500,7 @@ try {
       await pages[0].getByRole('alert').filter({hasText:'not valid JSON'}).waitFor();
       assert.equal(await pages[0].getByLabel('Model response JSON',{exact:true}).inputValue(),'not json');
       await pages[0].getByRole('button',{name:'Clear response',exact:true}).click();
+      await pages[0].getByRole('alert').waitFor({state:'detached'});
       assert.equal(await pages[0].getByRole('alert').count(),0);
       assert.deepEqual((await database.query('select * from trades where id=$1',[path.split('/').pop()])).rows,manualBefore);
       console.log('Manual review browser: packet download, pasted response, escaped HTML/URLs, cited sources/metrics, mobile width, clear/recovery and no writes passed.');
