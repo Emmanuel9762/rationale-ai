@@ -32,14 +32,14 @@ function ReviewEditor({ period, clear }: { period: Period; clear: () => void }) 
   </div>;
 
   return <div className="space-y-5">
-    <form action={action} onReset={event => { event.preventDefault(); clear(); }} className="space-y-4" aria-label="Check manual review">
+    <form action={action} onReset={event => event.preventDefault()} className="space-y-4" aria-label="Check manual review">
       {period.from && <input type="hidden" name="from" value={period.from}/>}
       {period.to && <input type="hidden" name="to" value={period.to}/>}
       <label className="block text-sm" htmlFor="manual-response">Model response JSON
         <textarea id="manual-response" name="response" required rows={8} maxLength={16384} disabled={pending} value={raw} onChange={event => setRaw(event.target.value)} className="journal-field font-mono" aria-describedby="manual-response-help"/>
       </label>
       <p id="manual-response-help" className="text-sm text-muted">Paste only the JSON object, up to 16 KiB. The response must match a fresh download for these dates. Edits to trades or reviews, and changes to included trades, invalidate an earlier packet.</p>
-      <div className="flex flex-wrap gap-4"><button className="journal-primary" disabled={pending}>{pending ? "Checking response…" : "Check response"}</button><button className="journal-secondary" type="reset" disabled={pending}>Clear response</button></div>
+      <div className="flex flex-wrap gap-4"><button className="journal-primary" disabled={pending}>{pending ? "Checking response…" : "Check response"}</button><button className="journal-secondary" type="button" onClick={clear} disabled={pending}>Clear response</button></div>
       {pending && <p role="status">Checking against your current journal…</p>}
       {!pending && state.error && <p role="alert">{state.error} Download a fresh packet if your journal or dates changed.</p>}
     </form>

@@ -475,7 +475,12 @@ try {
       await pages[0].getByLabel('Model response JSON',{exact:true}).fill(browserReply);
       await pages[0].getByRole('button',{name:'Check response',exact:true}).click();
       const draftView=pages[0].getByRole('region',{name:'Checked review draft',exact:true});
-      await draftView.getByText('Review draft',{exact:true}).waitFor();
+      try { await draftView.getByText('Review draft',{exact:true}).waitFor(); }
+      catch(error) {
+        if(process.env.JOURNAL_SCREENSHOTS) await pages[0].screenshot({path:process.env.JOURNAL_SCREENSHOTS+'-manual-failure.png',fullPage:true});
+        console.log('Manual review check state:',await pages[0].getByRole('alert').allTextContents());
+        throw error;
+      }
       assert.equal(await draftView.locator('img').count(),0);
       assert.equal(await draftView.locator('a[href="https://evil.test"]').count(),0);
       assert.equal(await pages[0].evaluate(()=>window.manualReviewExecuted),undefined);

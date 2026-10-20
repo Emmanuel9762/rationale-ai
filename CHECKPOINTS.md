@@ -1326,3 +1326,8 @@ checks include two-owner isolation, forged IDs, invalid dates, malformed/oversiz
 UTF-8 responses, stale replies after a trade edit, escaped text and no trade writes.
 CI must pass the added Chromium download/paste/citation/clear/recovery/mobile checks,
 and its manual-review screenshot must be inspected before PR readiness.
+
+The first Chromium run exposed React's automatic post-action form reset invoking
+the same handler as the explicit Clear button and discarding the checked draft.
+The Clear button now remounts the editor explicitly; automatic resets are prevented.
+The browser round-trip check protects this behavior. Reverification is required.
