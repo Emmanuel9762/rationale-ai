@@ -1,3 +1,4 @@
+import { JournalShell, JournalHeader } from "@/app/journal-shell";
 import Link from "next/link";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import CsvPreviewForm from "./preview-form";
@@ -6,12 +7,11 @@ export const dynamic = "force-dynamic";
 
 export default async function CsvPreviewPage() {
   await requireCurrentUser();
-  return <main className="min-h-screen bg-zinc-950 px-6 py-10 text-zinc-100">
-    <div className="mx-auto max-w-6xl space-y-6">
-      <nav className="flex gap-5 text-sm"><Link href="/trades">Trade history</Link><Link href="/performance">Performance</Link><Link href="/trades/imports">Import history</Link></nav>
-      <header><h1 className="text-2xl font-semibold">Preview trade CSV</h1><p className="mt-2 text-zinc-400">Preview a file, fix any invalid records, then confirm to save the whole batch. Preview alone never saves trades.</p></header>
-      <p className="rounded-xl border border-zinc-800 p-4 text-sm">Different column names? <Link className="underline" href="/trades/map-csv">Map a paper-trade CSV</Link> locally before importing. Use one row per whole trade.</p>
+  return <JournalShell active="journal">
+      <nav className="journal-tools" aria-label="CSV tools"><Link href="/trades/imports">Import history</Link></nav>
+      <JournalHeader eyebrow="Import trades" title="Preview trade CSV"><p>Preview a file, fix any invalid records, then confirm to save the whole batch. Preview alone never saves trades.</p></JournalHeader>
+      <p className="rounded-xl border border-line p-4 text-sm">Different column names? <Link className="underline" href="/trades/map-csv">Map a paper-trade CSV</Link> locally before importing. Use one row per whole trade.</p>
       <CsvPreviewForm />
-    </div>
-  </main>;
+
+  </JournalShell>;
 }

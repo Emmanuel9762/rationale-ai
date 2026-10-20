@@ -1,3 +1,4 @@
+import { JournalShell, JournalHeader } from "@/app/journal-shell";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import Link from "next/link";
 import { journalReturnHref, tradeContextHref } from "@/lib/journal-navigation";
@@ -15,5 +16,5 @@ export default async function EditTradePage({ params, searchParams }: { params: 
   if (!trade) notFound();
   const returnTo = journalReturnHref((await searchParams).returnTo);
   const initial = Object.fromEntries(Object.entries(trade).map(([key, value]) => [key, value instanceof Date ? value.toISOString().slice(0, 16) : String(value ?? "")]));
-  return <main className="min-h-screen bg-zinc-950 px-6 py-10 text-zinc-100"><div className="mx-auto max-w-3xl space-y-6"><Link href={tradeContextHref(id, returnTo)} className="text-sm underline">Back to trade</Link><h1 className="text-2xl font-semibold">Edit or close {trade.symbol}</h1><TradeForm revision={trade.revision} reloadHref={tradeContextHref(id, returnTo, true)} action={updateTrade.bind(null, id, returnTo)} initial={initial} submitLabel="Save changes"/></div></main>;
+  return <JournalShell active="journal" narrow><Link href={tradeContextHref(id, returnTo)} className="text-sm underline">Back to trade</Link><JournalHeader eyebrow="Update your record" title={`Edit or close ${trade.symbol}`}/><TradeForm revision={trade.revision} reloadHref={tradeContextHref(id, returnTo, true)} action={updateTrade.bind(null, id, returnTo)} initial={initial} submitLabel="Save changes"/></JournalShell>;
 }

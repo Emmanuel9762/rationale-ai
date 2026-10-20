@@ -136,7 +136,7 @@ try {
   assert.match(await (await submit('/verify-email',{email:user.email})).text(),/check your inbox/);
   assert.match(await (await submit('/verify-email',{email:user.email,otp:'000000'},1)).text(),/invalid or expired/);
   assert.match(await (await submit('/verify-email',{email:user.email,otp:'123456'},1)).text(),/Email verified/);
-  assert.match(await (await request('/account')).text(),/Email: <!-- -->Verified/);
+  assert.match(await (await request('/account')).text(),/<dt[^>]*>Email<\/dt>[\s\S]*?<dd[^>]*>[\s\S]*?>Verified<\/span>/);
   assert.match(await (await submit('/verify-email',{email:user.email,otp:'123456'},1)).text(),/invalid or expired/);
   throttled=true;
   assert.match(await (await submit('/forgot-password',{email:user.email})).text(),/Too many requests/);

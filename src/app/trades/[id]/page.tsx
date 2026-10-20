@@ -1,3 +1,4 @@
+import { JournalShell } from "@/app/journal-shell";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import Link from "next/link";
 import { journalReturnHref, tradeContextHref } from "@/lib/journal-navigation";
@@ -21,17 +22,17 @@ export default async function TradePage({ params, searchParams }: { params: Prom
     ["Entry time (UTC)", trade.entryTime.toISOString()], ["Exit time (UTC)", trade.exitTime?.toISOString()],
     ["Setup", trade.setup],
   ];
-  return <main className="journal-shell journal-detail min-h-screen text-zinc-100"><div className="mx-auto max-w-4xl space-y-6">
+  return <JournalShell active="journal" narrow>
     <Link className="text-sm underline" href={returnTo}>Back to trades</Link>
-    <header className="journal-heading"><div><p className="journal-eyebrow">Trade record</p><h1>{trade.symbol}</h1><p className="mt-2 text-zinc-400">{trade.setup || "No setup recorded"} · {trade.direction}</p></div><a className="journal-secondary" href="#review">Jump to review ↓</a></header>
+    <header className="journal-heading"><div><p className="journal-eyebrow">Trade record</p><h1>{trade.symbol}</h1><p className="mt-2 text-muted">{trade.setup || "No setup recorded"} · {trade.direction}</p></div><a className="journal-secondary" href="#review">Jump to review ↓</a></header>
     <Link className="journal-primary" href={tradeContextHref(trade.id, returnTo, true)}>Edit or close trade</Link>
-    <section aria-label="Execution" className="journal-detail-section"><h2>Execution</h2><dl className="grid gap-6 rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 sm:grid-cols-2">{fields.map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-sm text-zinc-400">{label}</dt><dd className="mt-1 whitespace-pre-wrap break-words">{value ?? "Not recorded"}</dd></div>)}</dl></section>
-    <section className="journal-detail-section" aria-labelledby="reasoning-title"><h2 id="reasoning-title">The thinking behind the trade</h2><dl className="grid gap-6 sm:grid-cols-2">{[["Rationale",trade.rationale],["Notes",trade.notes]].map(([label,value])=><div key={label}><dt className="journal-eyebrow">{label}</dt><dd className="mt-3 whitespace-pre-wrap break-words leading-relaxed text-zinc-300">{value || "Not recorded"}</dd></div>)}</dl></section>
+    <section aria-label="Execution" className="journal-detail-section"><h2>Execution</h2><dl className="grid gap-6 rounded-xl border border-line bg-panel p-6 sm:grid-cols-2">{fields.map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-sm text-muted">{label}</dt><dd className="mt-1 whitespace-pre-wrap break-words">{value ?? "Not recorded"}</dd></div>)}</dl></section>
+    <section className="journal-detail-section" aria-labelledby="reasoning-title"><h2 id="reasoning-title">The thinking behind the trade</h2><dl className="grid gap-6 sm:grid-cols-2">{[["Rationale",trade.rationale],["Notes",trade.notes]].map(([label,value])=><div key={label}><dt className="journal-eyebrow">{label}</dt><dd className="mt-3 whitespace-pre-wrap break-words leading-relaxed text-body">{value || "Not recorded"}</dd></div>)}</dl></section>
     <section id="review" aria-labelledby="review-title" className="journal-detail-section scroll-mt-6 space-y-4">
       <h2 id="review-title" className="text-xl font-semibold">Trade review</h2>
-      <p className="text-sm text-zinc-400">Reflect on your execution separately from profit or loss. Reviews are available for open and closed trades. Choose an answer and add at least one reflection (up to 2,000 characters each). Saving replaces your previous review.</p>
+      <p className="text-sm text-muted">Reflect on your execution separately from profit or loss. Reviews are available for open and closed trades. Choose an answer and add at least one reflection (up to 2,000 characters each). Saving replaces your previous review.</p>
       <p className="text-sm">{trade.reviewedAt ? `Last saved (UTC): ${trade.reviewedAt.toISOString()}` : "Not reviewed yet."}</p>
       <ReviewForm key={trade.id} revision={trade.revision} reloadHref={tradeContextHref(trade.id, returnTo)} action={saveReview.bind(null, trade.id)} initial={{ planAdherence: trade.planAdherence, reviewWentWell: trade.reviewWentWell, reviewImprove: trade.reviewImprove }}/>
     </section>
-  </div></main>;
+  </JournalShell>;
 }

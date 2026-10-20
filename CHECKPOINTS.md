@@ -1271,3 +1271,27 @@ change. AI_REVIEW_CONTRACT.md documents the required next integration controls.
 Verified locally: all 106 tests, lint, typecheck and diff checks passed. Eight new
 runner tests use simulated providers and no network/credentials. Full remote CI
 must pass before the dependent PR is marked ready. No new manual UI check is needed.
+
+## CP55 — consistent blue journal interface
+
+Consolidates dashboard, journal, performance, evidence, CSV, account and auth
+pages around a shared blue/slate palette. `JournalShell` owns the navigation,
+active section and content width; `JournalHeader` and `AuthShell` keep typography
+and spacing consistent. Existing contextual trade-return links remain intact.
+Shared field and button classes cover authentication, recovery, trade/review,
+date filters and CSV workflows. Profit/loss and pending colors keep their meaning.
+
+Adds a keyboard skip link, textarea focus states, dark native date controls,
+disabled-button treatment and keyboard-focusable performance table scrollers.
+Performance methodology is an expandable guide with all existing explanations.
+Account details now use the same panels. Replaces starter metadata/favicon.
+UI_GUIDE.md records the shared conventions so future pages use the same system.
+No dependencies, database migrations, query or action changes.
+
+Local verification: 106 tests, lint, typecheck, production build, protected-route,
+auth/recovery and full HTTP isolation/import workflows passed. A stale generated
+Next cache was moved aside and the build used fixture environment values.
+Chromium download was unavailable here; the CI browser suite adds a 16-route
+320px/1440px overflow/navigation sweep and keyboard checks. CI retains synthetic
+fixture screenshots as journal-ui. Browser verification and visual inspection
+must pass before this checkpoint's PR is marked ready.

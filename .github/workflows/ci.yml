@@ -34,3 +34,12 @@ jobs:
       - run: npm run test:auth
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
+        env:
+          JOURNAL_SCREENSHOTS: artifacts/journal
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journal-ui
+          path: artifacts/*.png
+          if-no-files-found: ignore
+          retention-days: 7

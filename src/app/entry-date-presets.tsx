@@ -9,9 +9,9 @@ export function EntryDatePresets({ pathname, period }: { pathname: "/" | "/perfo
         key={label}
         href={pathname + "?" + new URLSearchParams({ from, to })}
         aria-current={period.from === from && period.to === to ? "true" : undefined}
-        className="rounded-lg border border-zinc-700 px-3 py-2 text-sm aria-[current=true]:bg-zinc-800"
+        className="rounded-lg border border-input px-3 py-2 text-sm aria-[current=true]:bg-accent-soft"
       >{label}</Link>)}
     </nav>
-    <p className="text-sm text-zinc-400">UTC entry dates. Rolling ranges include today; this month runs through today, which is still in progress. Links save explicit dates.</p>
+    <p className="text-sm text-muted">UTC entry dates. Rolling ranges include today; this month runs through today, which is still in progress. Links save explicit dates.</p>
   </div>;
 }
