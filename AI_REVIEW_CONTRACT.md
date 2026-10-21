@@ -1,10 +1,13 @@
 # AI review response boundary — CP53
 
 CP53 added server-side preparation and validation functions. CP54 added a disabled
-internal runner; CP56 adds an optional manual packet/reply workflow, documented in
+internal runner; CP56 adds an optional manual packet/reply workflow and CP57 adds
+explicit saved drafts with original evidence, documented in
 MANUAL_REVIEW.md. No live provider is configured and Rationale makes no model call.
 Review evidence remains the way to inspect input. The manual flow validates a pasted
 reply against a freshly loaded, server-owned snapshot and displays an unsaved draft.
+Saving rechecks fresh evidence and stores the response plus that exact snapshot;
+reopening uses the stored snapshot, never current trades as historical truth.
 
 ## Request boundary
 

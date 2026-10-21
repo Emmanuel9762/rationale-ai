@@ -224,3 +224,13 @@ credential changes, deployment or laptop acceptance was performed during CP35.
 Keep the working database/Auth pairing. If upgrading from seven migrations,
 rehearse and apply 0007/0008 using MIGRATIONS.md before expecting verification to
 pass. Retain any README stash until its contents have been deliberately reconciled.
+
+## CP57 review-history upgrade
+
+The CP47 baseline above still describes the merged main branch. The dependent
+CP57 branch requires **ten** migrations through `0009_saved_reviews`. Follow the
+CP57 section of MIGRATIONS.md before starting it; `release:verify` remains read-only
+and must be given the exact intended ref, for example
+`npm run release:verify -- --expect-ref origin/codex/cp57-review-history` after a
+successful fetch/switch and a clean checkout. Do not use the earlier nine-migration
+expectation for CP57. No live migration or deployment is implied by passing CI.

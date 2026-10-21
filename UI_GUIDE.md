@@ -3,7 +3,8 @@
 Use `JournalShell` for authenticated pages and `AuthShell` for sign-in, recovery
 and verification. `JournalHeader` owns the eyebrow, title and description rhythm.
 The shared navigation marks the page's section; trade details and CSV tools belong
-to Trade history. Preserve contextual return links inside the shared frame.
+to Trade history. Saved review history/details belong to Review evidence, with
+local back/prepare links. Preserve contextual return links inside the shared frame.
 
 The palette lives in `src/app/globals.css`. Tailwind's semantic color utilities
 (`bg-canvas`, `bg-panel`, `text-muted`, `border-line`, `text-accent`) reference those
@@ -24,6 +25,6 @@ native details disclosure, preserving the complete explanation.
 
 `npm run test:browser` covers the real forms and navigation using synthetic
 Auth/Postgres fixtures. Its shared-frame sweep checks active navigation and
-document overflow on 16 routes at 320px and 1440px, plus skip-link and field focus.
+document overflow on 18 routes at 320px and 1440px, plus skip-link and field focus.
 Set `JOURNAL_SCREENSHOTS` to a local path prefix to capture those views. CI saves
 the fixture screenshots as the `journal-ui` artifact for seven days.

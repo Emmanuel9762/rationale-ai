@@ -22,7 +22,7 @@ try {
   }
   assert.ok(base, "Production server did not start within 30 seconds");
   const id = "00000000-0000-4000-8000-000000000000";
-  for (const path of ["/", "/trades/export", "/trades/preview", "/trades/map-csv", "/trades/imports", "/performance", "/performance/export", "/review-evidence", "/review-evidence/export", "/trades", "/trades/new", `/trades/${id}`, `/trades/${id}/edit`]) {
+  for (const path of ["/", "/trades/export", "/trades/preview", "/trades/map-csv", "/trades/imports", "/performance", "/performance/export", "/review-evidence", "/review-evidence/export", "/review-evidence/history", `/review-evidence/history/${id}`, "/trades", "/trades/new", `/trades/${id}`, `/trades/${id}/edit`]) {
     const response = await fetch(base + path, { redirect: "manual", signal: AbortSignal.timeout(10000) });
     assert.equal(response.status, 307, path);
     assert.equal(response.headers.get("location"), "/sign-in", path);
@@ -33,6 +33,7 @@ try {
     ["createTrade", "/trades/new", [{ error: "" }, {}]],
     ["importTradeCsv", "/trades/preview", [{}]],
     ["checkManualReviewAction", "/review-evidence", [{ error: "" }, {}]],
+    ["saveManualReviewAction", "/review-evidence", [{ error: "" }, {}]],
     ["updateTrade", `/trades/${id}/edit`, [id, { error: "" }, {}]],
   ]) {
     const entry = Object.entries(manifest.node).find(([, action]) => action.exportedName === name);
@@ -50,7 +51,7 @@ try {
   const signIn = await fetch(base + "/sign-in");
   assert.equal(signIn.status, 200);
   assert.match(await signIn.text(), /Sign in to your journal/);
-  console.log("Production access: 13 protected routes and save/import/manual-check actions redirect; sign-in page is accessible.");
+  console.log("Production access: 15 protected routes and save/import/manual-check/manual-save actions redirect; sign-in page is accessible.");
 } finally {
   const exited = once(child, "exit");
   if (child.exitCode === null) { child.kill("SIGTERM"); await exited; }

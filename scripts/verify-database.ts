@@ -21,6 +21,10 @@ async function main() {
   if (status.pending) { console.error("Apply pending migrations on a disposable branch first; see MIGRATIONS.md."); process.exitCode=1; return; }
   const result = await db.execute(sql`
     select
+      (select count(*)=7 from information_schema.columns where table_schema='public' and table_name='saved_reviews' and is_nullable='NO' and ((column_name in ('id','user_id') and data_type='uuid') or (column_name in ('evidence_id','response_hash') and data_type='character varying' and character_maximum_length=64) or (column_name='evidence' and data_type='json') or (column_name='response' and data_type='text') or (column_name='created_at' and data_type='timestamp without time zone'))) as saved_review_columns_ok,
+      exists(select 1 from pg_constraint where conrelid=to_regclass('public.saved_reviews') and contype='f' and convalidated and conname='saved_reviews_user_id_users_id_fk') as saved_review_owner_ok,
+      exists(select 1 from pg_index where indexrelid=to_regclass('public.saved_reviews_owner_content_unique') and indrelid=to_regclass('public.saved_reviews') and indisvalid and indisunique and indpred is null and pg_get_indexdef(indexrelid) like '%(user_id, evidence_id, response_hash)%') as saved_review_unique_ok,
+      exists(select 1 from pg_index where indexrelid=to_regclass('public.saved_reviews_owner_created_idx') and indrelid=to_regclass('public.saved_reviews') and indisvalid and indpred is null and pg_get_indexdef(indexrelid) like '%(user_id, created_at, id)%') as saved_review_history_ok,
       (select count(*)=2 from information_schema.columns where table_schema='public' and table_name='trade_import_rows' and column_name in ('trade_id','import_id') and data_type='uuid' and is_nullable='NO') as import_links_columns_ok,
       exists(select 1 from pg_index where indexrelid=to_regclass('public.trade_import_rows_pkey') and indrelid=to_regclass('public.trade_import_rows') and indisvalid and indisprimary and pg_get_indexdef(indexrelid) like '%(trade_id)%') as import_links_primary_ok,
       exists(select 1 from pg_index where indexrelid=to_regclass('public.trade_import_rows_import_idx') and indrelid=to_regclass('public.trade_import_rows') and indisvalid and indpred is null and pg_get_indexdef(indexrelid) like '%(import_id)%') as import_links_index_ok,
@@ -41,10 +45,10 @@ async function main() {
       exists(select 1 from pg_index where indexrelid=to_regclass('public.trading_accounts_one_default_per_user') and indrelid='public.trading_accounts'::regclass and indisvalid and indisunique and pg_get_indexdef(indexrelid) like '%(user_id)%' and pg_get_expr(indpred,indrelid)='(is_default = true)') as default_index_ok
   `);
   if (!Object.values(result.rows[0]).every(value => value === true)) {
-    console.error("Required identity/default-account/review/submission/revision/import/link schema checks failed. Compare the schema before changing anything.");
+    console.error("Required identity/default-account/review/submission/revision/import/link/saved-review schema checks failed. Compare the schema before changing anything.");
     process.exitCode=1; return;
   }
-  console.log("Required identity/default-account/review/submission/revision/import/link columns and unique indexes verified. No database writes performed.");
+  console.log("Required identity/default-account/review/submission/revision/import/link/saved-review columns and indexes verified. No database writes performed.");
 }
 main().catch(error => {
   console.error("Database verification failed. Check target branch, connectivity and migration history; do not reset or manufacture ledger entries.");
