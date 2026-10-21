@@ -962,7 +962,7 @@ try {
       assert.equal(await pages[0].locator(':focus').getAttribute('id'),'main-content');
       await pages[0].getByLabel('Symbol',{exact:true}).focus();
       assert.equal(await pages[0].locator(':focus').evaluate(el=>getComputedStyle(el).outlineStyle),'solid');
-      console.log('Shared UI browser: active navigation, 16 routes at 320/1440px, skip link and field focus passed.');
+      console.log(`Shared UI browser: active navigation, ${visualRoutes.length + 5} routes at 320/1440px, skip link and field focus passed.`);
       console.log('Two isolated Chromium contexts: signup, trade creation, refresh and cross-user denial passed.');
     } finally {await browser.close();}
   }
