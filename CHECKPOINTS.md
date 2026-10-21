@@ -1334,3 +1334,41 @@ An external label keeps its name stable across validation responses. Error asser
 are scoped to the manual form, excluding Next's separate accessibility announcer.
 The browser round trip covers success, error recovery and explicit clear; all checks
 must pass before PR readiness.
+
+## CP57 — saved review history with original evidence
+
+Finishes CP56's handoff: exact-head CI passed at b07a98a in run 39452166685,
+manual draft/mobile screenshots were inspected, and PR #40 remains ready.
+
+Adds explicit Save review draft after the manual response check, plus owner-scoped
+Review history and saved-review detail pages. Saving reloads fresh server evidence
+and revalidates the bounded response; client state, claimed owners and snapshots
+are ignored. An old response cannot be saved after its source evidence changes.
+The saved record contains the original snapshot and normalized validated response,
+not an assertion that model claims are correct. Reopening rebuilds metrics, caveats
+and safe source links from the stored snapshot. Original evidence is expandable;
+trade links explicitly open current records, which may differ after later edits.
+
+Migration 0009_saved_reviews adds an empty table, owner foreign key, unique
+owner/evidence/response key and history index. Exact JSON key order is retained for
+the existing evidence fingerprint. A duplicate or lost save response recovers the
+same record on unchanged evidence. History reads only 25 metadata rows plus one
+lookahead, ordered by save time/ID. Malformed or foreign IDs return 404; shared
+blue components keep desktop/mobile navigation consistent. No trade writes, live
+model call, API key or new dependency. MIGRATIONS.md has the ten-migration rollout
+and user acceptance; MANUAL_REVIEW.md covers save/reopen and limitations.
+
+Acceptance: unit/fixture checks cover stored JSON identity/decimal precision,
+original evidence after source edits, owner isolation, malformed/empty/oversized/
+foreign/stale saves, duplicates, pagination and a populated CP56 migration upgrade.
+HTTP checks add authenticated actions, forged state, committed-save/lost-reply
+recovery, repeated bounds, 404s and unchanged trades. Chromium must exercise
+check/save/reload/history/reopen/original-evidence inspection, escaped model text
+and mobile width, with saved-review/history routes in the shared visual sweep.
+The database verifier runs against the isolated fixture. Full CI and screenshot
+inspection are required before PR readiness; no live database rollout is claimed.
+
+Verified locally: all 112 tests, lint, typecheck, production build, 15 protected
+routes/actions, auth/recovery and the complete HTTP/isolation/import workflow passed.
+The new migration/schema verifier passed against the controlled fixture, including
+ten verified migrations and zero pending. Browser verification runs in CI.

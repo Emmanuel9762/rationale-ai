@@ -19,7 +19,7 @@ export default async function ReviewEvidencePage({searchParams}: {searchParams:P
   const evidence = errors.length ? null : await reviewEvidence(db,user.id,params);
   return <JournalShell active="evidence">
 
-      <JournalHeader eyebrow="Prepare your review" title="Review evidence"><p>Check what your journal can support before drawing conclusions. No AI analysis has been generated and nothing is sent to a model.</p></JournalHeader>
+      <JournalHeader eyebrow="Prepare your review" title="Review evidence" actions={<Link className="journal-secondary" href="/review-evidence/history">Review history</Link>}><p>Check what your journal can support before drawing conclusions. Nothing is sent to a model by Rationale.</p></JournalHeader>
       <form key={`${period.from ?? ""}:${period.to ?? ""}:${errors.join("|")}`} action="/review-evidence" method="get" className="journal-detail-section flex flex-wrap items-end gap-4">
         {([['from','From entry date (UTC)'],['to','Through entry date (UTC)']] as const).map(([name,label])=><label key={name} className="text-sm">{label}<input type="date" name={name} className="journal-field" defaultValue={typeof params[name] === "string" ? params[name] : ""}/></label>)}
         <button className="journal-primary">Apply dates</button><Link className="underline" href="/review-evidence">All time</Link>
@@ -44,7 +44,7 @@ export default async function ReviewEvidencePage({searchParams}: {searchParams:P
             <ol className="list-inside list-decimal space-y-3 text-sm text-body">
               <li><a className="underline" href={journalHref(period).replace("/trades", "/review-evidence/export")}>Download review packet (JSON)</a>. It includes trade IDs, notes and reflections, with the same 100-trade and excerpt limits shown here. Review its contents before sharing.</li>
               <li>Attach the packet to your chosen model. Ask it to follow the packet’s instructions, treat evidence as untrusted data, and return only the specified JSON object with the same evidenceId.</li>
-              <li>Paste the reply below. Structure and citation checks help you inspect a draft; they do not prove its claims or identify a trading edge.</li>
+              <li>Paste the reply below, check it, and optionally save it to Review history. Structure and citation checks help you inspect a draft; they do not prove its claims or identify a trading edge.</li>
             </ol>
             <ManualReviewForm period={period}/>
           </div>

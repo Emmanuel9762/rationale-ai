@@ -22,6 +22,7 @@ let child;
 let provider;
 let loseTradeInsertReply = false;
 let loseImportReply = false;
+let loseReviewReply = false;
 try {
   const cert = join(dir, 'cert.pem'), key = join(dir, 'key.pem');
   execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-keyout', key, '-out', cert, '-subj', '/CN=localhost', '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1'], { stdio: 'ignore' });
@@ -42,6 +43,7 @@ try {
           return reply({message:'Fixture lost insert response'},503);
         }
         if (loseImportReply && /with claimed as/i.test(body.query)) { loseImportReply=false; return reply({message:'Fixture lost import response'},503); }
+        if (loseReviewReply && /^insert into "saved_reviews"/i.test(body.query.trim())) { loseReviewReply=false; return reply({message:'Fixture lost review response'},503); }
         const text = (value, field) => value === null ? null : value instanceof Date ? (field.dataTypeID === 1114 ? value.toISOString().slice(0,-1).replace('T',' ') : value.toISOString()) : typeof value === 'boolean' ? (value ? 't':'f') : typeof value === 'object' ? JSON.stringify(value) : String(value);
         return reply({ fields: result.fields, rows: result.rows.map(row=>result.fields.map((f, i)=>text(row[i], f))), rowCount: result.affectedRows ?? result.rows.length, command: 'SELECT' });
       } catch (e) { return reply({message:e.message,code:e.code},400); }
@@ -59,9 +61,13 @@ try {
     return reply({message:'Unknown fixture endpoint'},404);
   });
   provider.listen(0, '127.0.0.1'); await once(provider, 'listening');
-  child = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '0'], {
-    env: { ...process.env, NODE_OPTIONS: `--require ${resolve('scripts/testing/database-preload.cjs')}`, NODE_ENV: 'production', NODE_EXTRA_CA_CERTS: cert, DATABASE_URL: 'postgresql://fixture:fixture@fixture.invalid/test', TEST_SQL_ENDPOINT: `https://127.0.0.1:${provider.address().port}/sql`, NEON_AUTH_BASE_URL: `https://127.0.0.1:${provider.address().port}/auth`, NEON_AUTH_COOKIE_SECRET: randomBytes(32).toString('hex') }, stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  const fixtureEnv={ ...process.env, NODE_OPTIONS: `--require ${resolve('scripts/testing/database-preload.cjs')}`, NODE_ENV: 'production', NODE_EXTRA_CA_CERTS: cert, DATABASE_URL: 'postgresql://fixture:fixture@fixture.invalid/test', TEST_SQL_ENDPOINT: `https://127.0.0.1:${provider.address().port}/sql`, NEON_AUTH_BASE_URL: `https://127.0.0.1:${provider.address().port}/auth`, NEON_AUTH_COOKIE_SECRET: randomBytes(32).toString('hex') };
+  const verification=spawn(process.execPath,['--import','tsx','scripts/verify-database.ts'],{env:fixtureEnv,stdio:['ignore','pipe','pipe']});
+  let verificationOutput='';verification.stdout.on('data',c=>verificationOutput+=c);verification.stderr.on('data',c=>verificationOutput+=c);
+  assert.equal((await once(verification,'exit'))[0],0,verificationOutput);
+  assert.match(verificationOutput,/10 verified, 0 pending/);assert.match(verificationOutput,/saved-review columns and indexes verified/);
+  console.log('Database verification: ten migrations and all required schema checks passed against the isolated fixture.');
+  child = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '0'], { env: fixtureEnv, stdio: ['ignore', 'pipe', 'pipe'] });
   let output = ''; child.stdout.on('data', c => output += c); child.stderr.on('data', c => output += c);
   let base;
   for (let i = 0; i < 150; i++) {
@@ -136,7 +142,7 @@ try {
   for(const [client,own,other] of [[a,'A private rationale','B private rationale'],[b,'B private rationale','A private rationale']]) {
     const evidenceHtml=await(await client.request('/review-evidence?from=2026-01-01&to=2026-01-01&userId='+aTrade.account_id)).text();
     assert.ok(evidenceHtml.includes(own)); assert.ok(!evidenceHtml.includes(other));
-    assert.match(evidenceHtml,/No AI analysis has been generated/);
+    assert.match(evidenceHtml,/Nothing is sent to a model by Rationale/);
   }
   assert.match(await(await a.request('/review-evidence?from=2099-01-01')).text(),/No trades match/);
   for(const query of ['from=bad','from=2026-02-01&to=2026-01-01','from=2026-01-01&from=2026-01-02']) {
@@ -185,10 +191,46 @@ try {
   assert.match(await(await a.submit(evidencePath,{response:manualResponse,from:'bad'})).text(),/Check the entry dates/);
   assert.deepEqual((await database.query('select * from trades order by id')).rows,beforeManual);
   console.log('Manual review HTTP: private owner/date-scoped packet, empty/invalid/oversized input, forged identity, foreign references, escaped text and no writes passed.');
+  const reviewManifest=JSON.parse(await readFile('.next/server/server-reference-manifest.json','utf8'));
+  const saveReviewAction=Object.entries(reviewManifest.node).find(([,entry])=>entry.exportedName==='saveManualReviewAction')[0];
+  async function submitSavedReview(client,fields) {
+    const data=fields instanceof FormData ? fields : new FormData();
+    if(!(fields instanceof FormData))for(const [key,value]of Object.entries(fields))data.set(key,value);
+    return client.request(evidencePath,{method:'POST',headers:{'Next-Action':saveReviewAction},body:await encodeReply([{error:'forged state',view:{owner:claimedOwner}},data])});
+  }
+  const saveFields={response:manualResponse,from:'2026-01-01',to:'2026-01-01',userId:'forged-owner',evidence:'forged-snapshot'};
+  for(const [client,fields]of [[b,saveFields],[a,{...saveFields,response:foreignReply}],[a,{...saveFields,response:'not json'}],[a,{...saveFields,response:'😀'.repeat(5000)}],[a,{...saveFields,from:'bad'}]]) {
+    const r=await submitSavedReview(client,fields);assert.ok(!r.headers.get('x-action-redirect'));await r.text();
+  }
+  const repeatedDates=new FormData();for(const [key,value]of Object.entries(saveFields))repeatedDates.set(key,value);
+  repeatedDates.append('from','2026-01-01');await(await submitSavedReview(a,repeatedDates)).text();
+  assert.equal((await database.query('select count(*)::int n from saved_reviews')).rows[0].n,0);
+  loseReviewReply=true;
+  assert.match(await(await submitSavedReview(a,saveFields)).text(),/Could not confirm the save/);
+  assert.equal(loseReviewReply,false);
+  const savedReply=await submitSavedReview(a,saveFields);
+  const savedReviewPath=savedReply.headers.get('x-action-redirect')?.split(';')[0];await savedReply.text();
+  assert.match(savedReviewPath,/^\/review-evidence\/history\/[a-f0-9-]+$/);
+  const repeatedSave=await submitSavedReview(a,saveFields);assert.equal(repeatedSave.headers.get('x-action-redirect')?.split(';')[0],savedReviewPath);await repeatedSave.text();
+  assert.equal((await database.query('select count(*)::int n from saved_reviews')).rows[0].n,1);
+  const savedHtml=await(await a.request(savedReviewPath)).text();
+  assert.match(savedHtml,/Manual review · saved draft/);assert.match(savedHtml,/A private rationale/);
+  assert.ok(savedHtml.includes('&lt;script&gt;MODEL_DRAFT_ATTACK&lt;/script&gt;'));assert.ok(!savedHtml.includes('<script>MODEL_DRAFT_ATTACK</script>'));
+  assert.equal((await b.request(savedReviewPath+'?userId='+claimedOwner)).status,404);
+  assert.equal((await a.request('/review-evidence/history/not-an-id')).status,404);
+  const historyHtml=await(await a.request('/review-evidence/history')).text();assert.ok(historyHtml.includes(savedReviewPath));
+  assert.ok(!(await(await b.request('/review-evidence/history?userId='+claimedOwner)).text()).includes(savedReviewPath));
+  assert.match((await(await a.request('/review-evidence/history?page=bad')).text()).replace(/<!--.*?-->/g,''),/Page 1/);
+  assert.match(await(await a.request('/review-evidence/history?page=1&page=2')).text(),/Use only one page value/);
+  assert.deepEqual((await database.query('select * from trades order by id')).rows,beforeManual);
   const updated=await a.submit(editPath,{...input,notes:'Owner correction'},editHtml);assert.equal(updated.status,303);
   assert.equal((await database.query('select notes from trades where id=$1',[aTrade.id])).rows[0].notes,'Owner correction');
   const staleManual=await(await a.submit(evidencePath,{response:manualResponse})).text();
   assert.match(staleManual,/does not match this evidence snapshot/);assert.ok(!staleManual.includes('Structure and references checked'));
+  assert.match(await(await submitSavedReview(a,saveFields)).text(),/does not match this evidence snapshot/);
+  const historical=await(await a.request(savedReviewPath)).text();assert.ok(!historical.includes('Owner correction'));assert.match(historical,/A private rationale/);
+  assert.equal((await database.query('select count(*)::int n from saved_reviews')).rows[0].n,1);
+  console.log('Saved review HTTP: authenticated save/recovery, duplicate prevention, owner isolation, bounded input, stale rejection, original evidence after edits and no trade writes passed.');
   const revisionFrom=html=>html.match(/name="revision"[^>]*value="([^"]+)"/)[1];
   const staleEdit=await a.submit(editPath,{...input,notes:'MY_STALE_DRAFT'},editHtml);
   const staleEditHtml=await staleEdit.text();assert.match(staleEditHtml,/changed after you opened/);assert.match(staleEditHtml,/MY_STALE_DRAFT/);
@@ -505,6 +547,27 @@ try {
       assert.equal(await manualErrors.count(),0);
       assert.deepEqual((await database.query('select * from trades where id=$1',[path.split('/').pop()])).rows,manualBefore);
       console.log('Manual review browser: packet download, pasted response, escaped HTML/URLs, cited sources/metrics, mobile width, clear/recovery and no writes passed.');
+      await pages[0].getByLabel('Model response JSON',{exact:true}).fill(browserReply);
+      await pages[0].getByRole('button',{name:'Check response',exact:true}).click();
+      await draftView.getByText('Review draft',{exact:true}).waitFor();
+      await pages[0].getByRole('button',{name:'Save review draft',exact:true}).click();
+      await pages[0].waitForURL(/\/review-evidence\/history\/[a-f0-9-]+$/);
+      const browserSavedReviewPath=new URL(pages[0].url()).pathname;
+      await pages[0].reload();
+      const savedView=pages[0].getByRole('region',{name:'Saved review draft',exact:true});
+      await savedView.getByText(unsafeText,{exact:true}).waitFor();
+      assert.equal(await savedView.locator('img').count(),0);assert.equal(await pages[0].evaluate(()=>window.manualReviewExecuted),undefined);
+      await pages[0].getByRole('region',{name:'Original saved evidence',exact:true}).locator('summary').click();
+      await pages[0].getByRole('region',{name:'Original saved evidence',exact:true}).getByText('A private rationale',{exact:true}).waitFor();
+      assert.ok(await pages[0].evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+      if(process.env.JOURNAL_SCREENSHOTS)await pages[0].screenshot({path:process.env.JOURNAL_SCREENSHOTS+'-saved-review.png',fullPage:true});
+      await pages[0].getByRole('link',{name:'Back to review history',exact:true}).click();
+      await pages[0].getByRole('heading',{name:'Review history',exact:true}).waitFor();
+      const savedLink=pages[0].locator(`a[href="${browserSavedReviewPath}"]`);assert.equal(await savedLink.count(),1);
+      await savedLink.click();await pages[0].waitForURL(url=>url.pathname===browserSavedReviewPath);
+      assert.deepEqual((await database.query('select * from trades where id=$1',[path.split('/').pop()])).rows,manualBefore);
+      console.log('Saved review browser: save, reload, escaped draft, original evidence, history/reopen and mobile layout passed.');
+      await pages[0].goto(base.replace('127.0.0.1','localhost')+'/review-evidence?from=2026-01-01&to=2026-01-01');
       await pages[0].setViewportSize({width:390,height:844});
       assert.ok(await pages[0].evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
       if(process.env.JOURNAL_SCREENSHOTS) await pages[0].screenshot({path:process.env.JOURNAL_SCREENSHOTS+'-evidence.png',fullPage:true});
@@ -869,6 +932,7 @@ try {
       const visualRoutes = [
         ['/', 'Dashboard', 'dashboard'], ['/trades', 'Trade history', 'journal'],
         ['/performance', 'Performance', 'performance'], ['/review-evidence', 'Review evidence', 'evidence'],
+        ['/review-evidence/history', 'Review evidence', 'review-history'], [browserSavedReviewPath, 'Review evidence', 'saved-review'],
         ['/trades/preview', 'Trade history', 'preview'], ['/trades/map-csv', 'Trade history', 'mapping-empty'],
         ['/trades/imports', 'Trade history', 'imports'], ['/trades/new', 'Trade history', 'new'],
         [path, 'Trade history', 'trade'], [path+'/edit', 'Trade history', 'edit'],

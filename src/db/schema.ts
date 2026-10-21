@@ -9,7 +9,10 @@ import {
   integer,
   uniqueIndex,
   index,
+  json,
+  text,
 } from "drizzle-orm/pg-core";
+import type { buildReviewEvidence } from "../lib/review-evidence";
 
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -71,3 +74,17 @@ export const tradeImportRows = pgTable("trade_import_rows", {
   tradeId: uuid("trade_id").primaryKey().references(() => trades.id),
   importId: uuid("import_id").notNull().references(() => tradeImports.id),
 }, table => [index("trade_import_rows_import_idx").on(table.importId)]);
+
+export const savedReviews = pgTable("saved_reviews", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  evidenceId: varchar("evidence_id", { length: 64 }).notNull(),
+  responseHash: varchar("response_hash", { length: 64 }).notNull(),
+  // JSON preserves serialized key order, which participates in CP53's fingerprint.
+  evidence: json("evidence").$type<ReturnType<typeof buildReviewEvidence>>().notNull(),
+  response: text("response").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, table => [
+  uniqueIndex("saved_reviews_owner_content_unique").on(table.userId, table.evidenceId, table.responseHash),
+  index("saved_reviews_owner_created_idx").on(table.userId, table.createdAt, table.id),
+]);

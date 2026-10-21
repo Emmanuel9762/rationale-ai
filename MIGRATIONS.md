@@ -219,3 +219,42 @@ Expect nine verified migrations and zero pending. Upgrading from CP29 applies bo
 Keep the additive table if reverting code. CP30 writers would omit new links, so
 stop older app instances before starting CP31. Foreign keys prevent deleting a
 linked receipt or trade without an explicit future deletion policy.
+
+## CP57 saved manual reviews
+
+`0009_saved_reviews` adds an empty owner-linked table containing a bounded original
+review-evidence snapshot, a normalized validated response, content fingerprints
+and the save time. The owner/content unique index prevents duplicate saves; a
+second index supports deterministic paginated history. JSON (rather than JSONB)
+preserves serialized key order for the existing evidence fingerprint. Existing
+users, accounts, trades, receipts, balances and self-assessments are unchanged.
+
+Stop the app. Preserve local Git changes and confirm switching to
+`codex/cp57-review-history` succeeded before proceeding. Rehearse on a disposable
+copy of the intended database first, following the earlier procedure. Keep the
+intended database paired with its existing Auth configuration and use the direct
+connection for migrations. With the correct target checked privately in `.env.local`,
+in Fish:
+
+```fish
+set -e DATABASE_URL
+npm run db:migrate
+npm run db:verify
+```
+
+Stop if either command fails. Expect **ten verified migrations, zero pending** and
+successful saved-review column/foreign-key/index checks. No new environment
+variables or dependencies are needed. Start the app only after verification.
+
+Acceptance: check a valid manual response, save it, reload, and reopen it through
+Review history. Edit a source trade in another tab: its current detail must change,
+while the saved review's original evidence and P&L stay fixed. Saving an old response
+against changed evidence must fail. Retrying a valid unchanged response must return
+the same saved review, and another signed-in owner must receive 404 for its URL.
+
+The isolated migration tests upgrade a populated nine-migration CP56 fixture,
+compare all existing users/accounts/trades unchanged, and rerun safely. They do
+not verify your live database history, network or Auth pairing. No live database
+migration was run during implementation. Retain this additive table when rolling
+back code; earlier code simply ignores saved reviews. Do not edit old SQL or the
+migration ledger to resolve a failed migration.
