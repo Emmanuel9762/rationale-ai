@@ -1372,3 +1372,36 @@ Verified locally: all 112 tests, lint, typecheck, production build, 15 protected
 routes/actions, auth/recovery and the complete HTTP/isolation/import workflow passed.
 The new migration/schema verifier passed against the controlled fixture, including
 ten verified migrations and zero pending. Browser verification runs in CI.
+
+## CP58 — load a Codex response file
+
+Finishes CP57's handoff: exact-head CI passed at d53c41d in run 39577947351,
+saved-review mobile/history desktop screenshots were inspected, and PR #41 is ready.
+The user chose Codex for analysis. Manual packet/response exchange is the current
+path; an optional future live API integration does not block journal improvements.
+
+Adds Response JSON file to the existing manual review flow, retaining paste as an
+alternative. A browser-only reader enforces 16 KiB before reading, strict UTF-8 and
+one JSON object; it accepts a UTF-8 BOM but rejects empty files, Markdown wrappers,
+malformed data and accidentally chosen evidence packets. A successful load replaces
+the editable text; failure keeps the existing text. Neither path uploads or saves.
+The existing authenticated Check/Save actions remain authoritative for the full
+response contract, fresh snapshot identity and citation ownership.
+
+Choosing a file hides prior feedback and the Save button until another check.
+Clear, typing, unmounting or a newer selection prevents late file reads from
+replacing newer input. Check is disabled while reading. Instructions now describe
+the Codex packet-to-JSON-file handoff and optional save/reopen steps. Shared blue
+fields/panels are reused. No new schema, dependency, environment setting or live
+model call; existing CP57 installations need no additional migration.
+
+Verified locally: all 115 tests, lint, typecheck, production build, 15 protected
+routes/actions, auth/recovery and complete HTTP/isolation/import workflows passed.
+Three new unit tests cover byte/BOM/Unicode boundaries, malformed input, safe read
+failures and preserved text. Chromium adds local-only loading, failed-load recovery,
+late-read races, stale draft invalidation, authoritative server checking and saving
+a file-loaded response. CI/browser and screenshot inspection must finish before
+PR readiness. No live database rollout or live model evaluation is claimed.
+
+Suggested next scoped checkpoint: filter saved Review history by save date, with
+owner-scoped pagination and clear distinction from the underlying trade dates.

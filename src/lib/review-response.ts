@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import type { buildReviewEvidence } from "./review-evidence";
+import { REVIEW_OUTPUT_MAX_BYTES } from "./review-limits";
+export { REVIEW_OUTPUT_MAX_BYTES } from "./review-limits";
 
 type Evidence = ReturnType<typeof buildReviewEvidence>;
 export const REVIEW_INPUT_MAX_BYTES = 512 * 1024;
-export const REVIEW_OUTPUT_MAX_BYTES = 16 * 1024;
 export const REVIEW_METRIC_KEYS = ["included", "open", "measured", "missingPnl", "reviewed",
   "missingRationale", "missingSetup", "missingReviewText", "truncatedTextFields", "recordedPnl"] as const;
 type MetricKey = typeof REVIEW_METRIC_KEYS[number];
