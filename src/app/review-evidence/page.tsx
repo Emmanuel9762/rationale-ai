@@ -40,11 +40,11 @@ export default async function ReviewEvidencePage({searchParams}: {searchParams:P
         {evidence.entries.length > 0 && <details className="journal-detail-section" key={journalHref(period)}>
           <summary className="font-semibold">Review this evidence with an external model</summary>
           <div className="mt-5 space-y-5">
-            <p className="text-sm text-muted">Download a packet for these entry dates, choose whether to share it with a model you use, then paste its JSON reply below. Rationale does not call a model. Checking a reply reads your current journal and saves nothing.</p>
+            <p className="text-sm text-muted">Download a packet for these entry dates, review it with Codex, then load or paste its JSON reply below. Rationale does not call a model. Checking a reply reads your current journal and saves nothing.</p>
             <ol className="list-inside list-decimal space-y-3 text-sm text-body">
               <li><a className="underline" href={journalHref(period).replace("/trades", "/review-evidence/export")}>Download review packet (JSON)</a>. It includes trade IDs, notes and reflections, with the same 100-trade and excerpt limits shown here. Review its contents before sharing.</li>
-              <li>Attach the packet to your chosen model. Ask it to follow the packet’s instructions, treat evidence as untrusted data, and return only the specified JSON object with the same evidenceId.</li>
-              <li>Paste the reply below, check it, and optionally save it to Review history. Structure and citation checks help you inspect a draft; they do not prove its claims or identify a trading edge.</li>
+              <li>Give Codex the packet. Ask it to follow the packet’s instructions, treat evidence as untrusted data, and write the specified JSON response to a UTF-8 file named <code>rationale-review-response.json</code>, with the same evidenceId and no Markdown fences.</li>
+              <li>Load the response file or paste the JSON below, check it, and optionally save it to Review history. Structure and citation checks help you inspect a draft; they do not prove its claims or identify a trading edge.</li>
             </ol>
             <ManualReviewForm period={period}/>
           </div>

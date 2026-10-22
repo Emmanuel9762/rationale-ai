@@ -3,9 +3,11 @@
 CP53 added server-side preparation and validation functions. CP54 added a disabled
 internal runner; CP56 adds an optional manual packet/reply workflow and CP57 adds
 explicit saved drafts with original evidence, documented in
-MANUAL_REVIEW.md. No live provider is configured and Rationale makes no model call.
-Review evidence remains the way to inspect input. The manual flow validates a pasted
-reply against a freshly loaded, server-owned snapshot and displays an unsaved draft.
+MANUAL_REVIEW.md. CP58 adds local JSON response-file loading. Codex is the
+chosen analysis workflow through this manual packet/response handoff. Rationale
+makes no model call. Review evidence remains the way to inspect input. The manual
+flow validates a loaded or pasted reply against a freshly loaded, server-owned
+snapshot and displays an unsaved draft.
 Saving rechecks fresh evidence and stores the response plus that exact snapshot;
 reopening uses the stored snapshot, never current trades as historical truth.
 
@@ -72,9 +74,11 @@ unsupported-numeric-claim, prompt-injection and usefulness evaluation before rel
 No-data is blocked; sparse-data reviews may ask questions without claiming patterns.
 No arbitrary trade-count threshold is treated as proof of adequate evidence.
 
-## Next integration checkpoint
+## Optional future live integration
 
-Choose a provider/model and spending ceiling. Then implement the server-only
+The current Codex file handoff needs no live adapter. Continue scoped journal
+improvements independently. If a live API integration is requested later, agree
+on a provider/model and spending ceiling, then implement the server-only
 adapter with explicit user invocation, feature/config gating, authentication,
 input/output token limits, timeout/cancellation, quota and duplicate-request control,
 provider-error recovery and use of this validator. Keep journal access working
@@ -122,7 +126,8 @@ post-response validation alone does not bound upstream cost or buffering.
 Future live route/action integration must authenticate, enforce a durable spending/request
 budget and get explicit invocation before calling the runner. The runner has no live
 route or model UI connected. CP56's manual flow calls the validator directly and does
-not invoke this runner. A provider/model and spending ceiling remain decisions.
+not invoke this runner. A live provider/model and spending ceiling would be
+separate future decisions; they are not prerequisites for the chosen Codex flow.
 
 Acceptance: `node --import tsx --test tests/review-runner.test.ts` uses simulated
 providers only. It covers successful validation, gating, owner/date forwarding,

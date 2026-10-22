@@ -49,17 +49,20 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel. Shared journal styling and UI verification are documented in [UI_GUIDE.md](UI_GUIDE.md).
 
-## Manual review and history (CP57)
+## Codex review files and history (CP58)
 
 On **Review evidence**, choose dates and expand **Review this evidence with an
-external model**. Download a private JSON packet, choose whether to share it with
-your model, then paste the JSON reply for validation and an unsaved, cited draft.
+external model**. Download a private JSON packet and give it to Codex for analysis.
+Load the returned UTF-8 JSON file (up to 16 KiB), or paste the reply, then choose
+**Check response** for validation and an unsaved, cited draft. File loading reads
+locally; checking sends the text to your journal and saves nothing.
 Choose **Save review draft** to keep the response and its original bounded evidence.
 Open **Review history** to revisit it; later trade edits do not change saved facts.
 Checking alone saves nothing. Rationale makes no model call and saving does not alter
 trades or self-assessments. CP57 requires migration `0009_saved_reviews`; follow
 [MIGRATIONS.md](MIGRATIONS.md) before starting. [MANUAL_REVIEW.md](MANUAL_REVIEW.md)
-has the steps, input limits and acceptance checks.
+has the Codex prompt, input limits and acceptance checks. CP58 needs no additional
+migration, API key or environment setting.
 
 ## Learn More
 
